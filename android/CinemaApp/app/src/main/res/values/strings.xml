@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RNPS Home Cinema</string>
+    <string name="tagline">Exclusive Theatre Experience</string>
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_no_internet">No Internet Connection</string>
+    <string name="error_no_internet_desc">Please check your connection and try again.</string>
+    <string name="retry">Retry</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="logout">Logout</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="name">Full Name</string>
+    <string name="phone">Phone Number</string>
+    <string name="home">Home</string>
+    <string name="profile">Profile</string>
+    <string name="now_showing">Now Showing</string>
+    <string name="book_ticket">Book Ticket</string>
+</resources>

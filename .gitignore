@@ -1,0 +1,13 @@
+.idea/
+.venv/
+backend/.env
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.gradle/
+build/
+local.properties
+*.db
+*.sqlite
+*.sqlite3

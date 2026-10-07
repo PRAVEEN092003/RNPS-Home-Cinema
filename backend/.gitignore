@@ -1,0 +1,15 @@
+.venv/
+backend/.venv/
+backend/.env
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+.vscode/
+build/
+.gradle/
+local.properties
+*.db
+*.sqlite
+*.sqlite3

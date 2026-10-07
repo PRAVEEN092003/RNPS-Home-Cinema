@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network security config to allow HTTP connections to local dev server.
+    For production, remove the clearTextPermitted lines.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Android emulator localhost -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- Physical device / LAN development -->
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
