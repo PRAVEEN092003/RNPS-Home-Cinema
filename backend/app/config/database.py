@@ -1,24 +1,38 @@
 """
 SQLAlchemy database engine and session setup.
 """
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config.settings import get_settings
 
 settings = get_settings()
 
-# Ensure database directory exists
-os.makedirs("database", exist_ok=True)
+database_url = settings.database_url
 
-engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False, "timeout": 15},  # Required for SQLite
-    echo=settings.debug,
+# SQLite-specific configuration
+if database_url.startswith("sqlite"):
+    engine = create_engine(
+        database_url,
+        connect_args={
+            "check_same_thread": False,
+            "timeout": 15,
+        },
+        echo=settings.debug,
+    )
+
+# PostgreSQL / Neon configuration
+else:
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True,
+        echo=settings.debug,
+    )
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
 )
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
