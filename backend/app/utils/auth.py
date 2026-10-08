@@ -1,6 +1,13 @@
 """
 JWT Authentication utilities.
 """
+# Compatibility fix for passlib with bcrypt >= 4.1.0 (must occur before passlib is imported)
+import bcrypt
+if not hasattr(bcrypt, "__about__"):
+    class _About:
+        __version__ = getattr(bcrypt, "__version__", "4.0.0")
+    bcrypt.__about__ = _About()
+
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -11,12 +18,6 @@ from sqlalchemy.orm import Session
 from app.config.settings import get_settings
 from app.config.database import get_db
 from app.models.models import User
-
-import bcrypt
-if not hasattr(bcrypt, "__about__"):
-    class _About:
-        __version__ = getattr(bcrypt, "__version__", "4.0.0")
-    bcrypt.__about__ = _About()
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
