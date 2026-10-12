@@ -139,4 +139,50 @@ def run_migrations(engine: Engine) -> None:
                     )
                 )
 
+    # ============================================================
+    # 3. SYNC AVAILABLE SHOW SEATS WITH AUTHORITATIVE SHOW BASE PRICE
+    # ============================================================
+    if "show_seats" in inspector.get_table_names() and "shows" in inspector.get_table_names():
+        print("[MIGRATION] Syncing AVAILABLE show_seats with authoritative show base_price...")
+        try:
+            with engine.begin() as conn:
+                if engine.dialect.name == "postgresql":
+                    conn.execute(
+                        text(
+                            """
+                            UPDATE show_seats
+                            SET price = shows.base_price
+                            FROM shows
+                            WHERE show_seats.show_id = shows.id
+                              AND show_seats.status = 'AVAILABLE'
+                              AND shows.base_price > 0
+                              AND show_seats.price != shows.base_price
+                            """
+                        )
+                    )
+                else:
+                    conn.execute(
+                        text(
+                            """
+                            UPDATE show_seats
+                            SET price = (
+                                SELECT shows.base_price
+                                FROM shows
+                                WHERE shows.id = show_seats.show_id
+                            )
+                            WHERE show_seats.status = 'AVAILABLE'
+                              AND EXISTS (
+                                SELECT 1
+                                FROM shows
+                                WHERE shows.id = show_seats.show_id
+                                  AND shows.base_price > 0
+                                  AND show_seats.price != shows.base_price
+                            )
+                            """
+                        )
+                    )
+            print("[MIGRATION] Successfully synced AVAILABLE show_seats prices.")
+        except Exception as e:
+            print(f"[MIGRATION] Warning: show_seats price sync encountered error: {e}")
+
     print("[MIGRATION] Database schema migration check complete.")

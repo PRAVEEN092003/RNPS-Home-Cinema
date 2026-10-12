@@ -160,7 +160,7 @@ def submit_payment(
         show=ShowResponse.model_validate(booking.show) if booking.show else None,
         seats=seats_resp,
         snacks=snacks_resp,
-        ticket_amount=ticket_subtotal + booking.convenience_fee,
+        ticket_amount=ticket_subtotal,
         snacks_amount=snacks_subtotal,
         payment=PaymentResponse.model_validate(payment) if payment else None,
         ticket=TicketResponse.model_validate(ticket) if ticket else None,

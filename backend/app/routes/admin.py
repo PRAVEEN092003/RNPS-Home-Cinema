@@ -117,12 +117,13 @@ def create_show(
 
     # Automatically generate ShowSeat records for all seats in the screen
     seats = db.query(Seat).filter(Seat.screen_id == screen.id, Seat.is_active == True).all()
+    configured_price = show.base_price if (show.base_price is not None and show.base_price > 0) else None
     show_seats = [
         ShowSeat(
             show_id=show.id,
             seat_id=seat.id,
             status=ShowSeatStatus.AVAILABLE,
-            price=seat.base_price,
+            price=configured_price if configured_price is not None else seat.base_price,
         )
         for seat in seats
     ]
@@ -148,6 +149,12 @@ def update_show(
 
     for field, val in request.model_dump(exclude_unset=True).items():
         setattr(show, field, val)
+
+    if request.base_price is not None and request.base_price > 0:
+        db.query(ShowSeat).filter(
+            ShowSeat.show_id == show.id,
+            ShowSeat.status == ShowSeatStatus.AVAILABLE
+        ).update({ShowSeat.price: request.base_price}, synchronize_session=False)
 
     db.commit()
     db.refresh(show)
@@ -306,7 +313,7 @@ def list_all_bookings(
                 show=ShowResponse.model_validate(b.show) if b.show else None,
                 seats=seats_resp,
                 snacks=snacks_resp,
-                ticket_amount=ticket_subtotal + b.convenience_fee,
+                ticket_amount=ticket_subtotal,
                 snacks_amount=snacks_subtotal,
                 payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
                 ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
@@ -400,7 +407,7 @@ def list_pending_payments(
                 show=ShowResponse.model_validate(b.show) if b.show else None,
                 seats=seats_resp,
                 snacks=snacks_resp,
-                ticket_amount=ticket_subtotal + b.convenience_fee,
+                ticket_amount=ticket_subtotal,
                 snacks_amount=snacks_subtotal,
                 payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
                 ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
@@ -445,7 +452,66 @@ def verify_payment(
     db.commit()
     db.refresh(booking)
 
-    return list_pending_payments(db, admin_user)[0]
+    # Reload booking with all relationships
+    booking = (
+        db.query(Booking)
+        .options(
+            joinedload(Booking.show).joinedload(Show.movie),
+            joinedload(Booking.show).joinedload(Show.screen),
+            joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
+            joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
+            joinedload(Booking.payment),
+            joinedload(Booking.ticket),
+        )
+        .filter(Booking.id == booking.id)
+        .first()
+    )
+
+    ticket_subtotal = sum(bs.price for bs in booking.booking_seats)
+    snacks_subtotal = sum(bsn.total_price for bsn in booking.booking_snacks)
+
+    seats_resp = [
+        BookingSeatResponse(
+            id=bs.id,
+            seat_id=bs.seat_id,
+            seat_code=bs.seat.seat_code if bs.seat else "",
+            row_label=bs.seat.row_label if bs.seat else "",
+            seat_number=bs.seat.seat_number if bs.seat else 0,
+            price=bs.price,
+        )
+        for bs in booking.booking_seats
+    ]
+
+    snacks_resp = [
+        BookingSnackResponse(
+            id=bsn.id,
+            snack_id=bsn.snack_id,
+            snack_name=bsn.snack.name if bsn.snack else "Snack",
+            quantity=bsn.quantity,
+            unit_price=bsn.unit_price,
+            total_price=bsn.total_price,
+        )
+        for bsn in booking.booking_snacks
+    ]
+
+    return BookingResponse(
+        id=booking.id,
+        user_id=booking.user_id,
+        show_id=booking.show_id,
+        booking_reference=booking.booking_reference,
+        status=booking.status,
+        total_amount=booking.total_amount,
+        convenience_fee=booking.convenience_fee,
+        total_seats=booking.total_seats,
+        created_at=booking.created_at,
+        show=ShowResponse.model_validate(booking.show) if booking.show else None,
+        seats=seats_resp,
+        snacks=snacks_resp,
+        ticket_amount=ticket_subtotal,
+        snacks_amount=snacks_subtotal,
+        payment=PaymentResponse.model_validate(booking.payment) if booking.payment else None,
+        ticket=TicketResponse.model_validate(booking.ticket) if booking.ticket else None,
+    )
 
 
 @router.get("/tickets/verify/{code}", response_model=TicketVerificationResponse)

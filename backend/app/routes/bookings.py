@@ -67,10 +67,23 @@ def create_booking(
             detail="One or more selected seats are no longer available. Please select different seats.",
         )
 
-    # 4. Calculate prices
-    subtotal = sum(ss.price for ss in show_seats)
-    convenience_fee = round(len(show_seats) * 1.50, 2)
-    total_amount = round(subtotal + convenience_fee, 2)
+    # 4. Calculate prices with trusted server-side pricing
+    for ss in show_seats:
+        if show.base_price is not None and show.base_price > 0:
+            ss.price = show.base_price
+        elif ss.price is None or ss.price <= 0:
+            seat_obj = db.query(Seat).filter(Seat.id == ss.seat_id).first()
+            if seat_obj and seat_obj.base_price and seat_obj.base_price > 0:
+                ss.price = seat_obj.base_price
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ticket price for one or more selected seats is invalid or not configured."
+                )
+
+    subtotal = round(sum(ss.price for ss in show_seats), 2)
+    convenience_fee = 0.0
+    total_amount = subtotal
 
     # 5. Create booking record
     booking_ref = generate_booking_reference()
@@ -129,7 +142,7 @@ def create_booking(
         created_at=booking.created_at,
         show=ShowResponse.model_validate(show),
         seats=booking_seat_responses,
-        ticket_amount=subtotal + convenience_fee,
+        ticket_amount=subtotal,
         snacks_amount=0.0,
     )
 
@@ -197,7 +210,7 @@ def get_my_bookings(
                 show=ShowResponse.model_validate(b.show) if b.show else None,
                 seats=seats_resp,
                 snacks=snacks_resp,
-                ticket_amount=ticket_subtotal + b.convenience_fee,
+                ticket_amount=ticket_subtotal,
                 snacks_amount=snacks_subtotal,
                 payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
                 ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,

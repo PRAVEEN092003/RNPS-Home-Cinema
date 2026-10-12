@@ -92,9 +92,10 @@ def add_snacks_to_booking(
         )
 
     # Recalculate ticket subtotal from booking_seats
-    ticket_subtotal = sum(bs.price for bs in booking.booking_seats)
-    total_payable = round(ticket_subtotal + booking.convenience_fee + snacks_total, 2)
+    ticket_subtotal = round(sum(bs.price for bs in booking.booking_seats), 2)
+    total_payable = round(ticket_subtotal + snacks_total, 2)
 
+    booking.convenience_fee = 0.0
     booking.total_amount = total_payable
     db.commit()
     db.refresh(booking)
@@ -124,6 +125,6 @@ def add_snacks_to_booking(
         show=ShowResponse.model_validate(booking.show) if booking.show else None,
         seats=seats_resp,
         snacks=booking_snack_responses,
-        ticket_amount=ticket_subtotal + booking.convenience_fee,
+        ticket_amount=ticket_subtotal,
         snacks_amount=snacks_total,
     )

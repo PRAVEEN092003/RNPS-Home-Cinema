@@ -26,7 +26,7 @@ def list_shows(
     )
     if movie_id:
         query = query.filter(Show.movie_id == movie_id)
-    shows = query.all()
+    shows = query.order_by(Show.start_time.asc()).all()
     return [ShowResponse.model_validate(s) for s in shows]
 
 
@@ -80,7 +80,20 @@ def get_show_seats(
     )
 
     seat_responses = []
+    needs_db_sync = False
     for show_seat, seat in results:
+        effective_price = show_seat.price
+        if show.base_price is not None and show.base_price > 0:
+            if show_seat.status == "AVAILABLE":
+                effective_price = show.base_price
+                if show_seat.price != show.base_price:
+                    show_seat.price = show.base_price
+                    needs_db_sync = True
+            else:
+                effective_price = show_seat.price
+        elif effective_price is None or effective_price <= 0:
+            effective_price = seat.base_price
+
         seat_responses.append(
             ShowSeatResponse(
                 id=show_seat.id,
@@ -91,9 +104,15 @@ def get_show_seats(
                 seat_code=seat.seat_code,
                 seat_type=seat.seat_type,
                 status=show_seat.status,
-                price=show_seat.price,
+                price=effective_price,
             )
         )
+
+    if needs_db_sync:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return ShowDetailsWithSeatsResponse(
         show=ShowResponse.model_validate(show),

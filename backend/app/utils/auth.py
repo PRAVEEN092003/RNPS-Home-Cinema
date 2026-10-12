@@ -8,6 +8,13 @@ if not hasattr(bcrypt, "__about__"):
         __version__ = getattr(bcrypt, "__version__", "4.0.0")
     bcrypt.__about__ = _About()
 
+_orig_hashpw = bcrypt.hashpw
+def _safe_hashpw(password, salt):
+    if isinstance(password, str):
+        password = password.encode("utf-8")
+    return _orig_hashpw(password[:72], salt)
+bcrypt.hashpw = _safe_hashpw
+
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt

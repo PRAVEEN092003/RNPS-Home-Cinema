@@ -216,7 +216,7 @@ def seed_cinema_data(db: Session) -> None:
                     show_id=show.id,
                     seat_id=seat.id,
                     status=status,
-                    price=seat.base_price,
+                    price=show.base_price,
                 ))
         db.commit()
 
