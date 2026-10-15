@@ -66,7 +66,7 @@ class AdminShowsViewModel @Inject constructor(
         movieId: Int,
         screenId: Int,
         startTime: String,
-        endTime: String,
+        endTime: String? = null,
         basePrice: Double
     ) {
         viewModelScope.launch {
@@ -93,7 +93,7 @@ class AdminShowsViewModel @Inject constructor(
         movieId: Int,
         screenId: Int,
         startTime: String,
-        endTime: String,
+        endTime: String? = null,
         basePrice: Double
     ) {
         viewModelScope.launch {

@@ -62,7 +62,7 @@ class MovieCreateRequest(BaseModel):
     poster_url: Optional[str] = None
     audio_technology: str = "Dolby Atmos"
     display_technology: str = "4K"
-    is_upcoming: bool = False
+    is_upcoming: bool = True
 
 
 class MovieUpdateRequest(BaseModel):
@@ -134,7 +134,7 @@ class ShowCreateRequest(BaseModel):
     movie_id: int
     screen_id: int
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     base_price: float = Field(..., gt=0)
 
 

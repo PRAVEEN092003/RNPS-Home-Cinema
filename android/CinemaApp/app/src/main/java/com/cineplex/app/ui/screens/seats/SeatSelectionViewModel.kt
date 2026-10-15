@@ -55,14 +55,31 @@ class SeatSelectionViewModel @Inject constructor(
         _selectedSeatIds.value = current
     }
 
-    fun calculateTotal(seats: List<ShowSeatDto>): Double {
-        return seats.filter { _selectedSeatIds.value.contains(it.seatId) }.sumOf { it.price }
+    fun calculateTotal(seats: List<ShowSeatDto>, showBasePrice: Double = 0.0): Double {
+        val effectiveUnitPrice = if (showBasePrice > 0.0) showBasePrice else 0.0
+        return seats.filter { _selectedSeatIds.value.contains(it.seatId) }
+            .sumOf { seat ->
+                if (effectiveUnitPrice > 0.0) effectiveUnitPrice
+                else if (seat.price > 0.0) seat.price
+                else 0.0
+            }
     }
 
-    fun confirmBooking() {
+    fun confirmBooking(showBasePrice: Double = 0.0) {
         if (_bookingState.value is UiState.Loading) return // Prevent duplicate booking submissions
         val selectedIds = _selectedSeatIds.value.toList()
         if (selectedIds.isEmpty()) return
+
+        val currentSeats = (_seatsState.value as? UiState.Success)?.data?.seats ?: emptyList()
+        val selectedSeats = currentSeats.filter { selectedIds.contains(it.seatId) }
+        val hasInvalidPrice = selectedSeats.any {
+            val unitPrice = if (showBasePrice > 0.0) showBasePrice else it.price
+            unitPrice <= 0.0
+        }
+        if (hasInvalidPrice) {
+            _bookingState.value = UiState.Error("Invalid ticket price configured. Please contact cinema admin.")
+            return
+        }
 
         viewModelScope.launch {
             _bookingState.value = UiState.Loading

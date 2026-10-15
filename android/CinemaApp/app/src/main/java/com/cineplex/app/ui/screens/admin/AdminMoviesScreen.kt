@@ -116,11 +116,11 @@ fun AdminMoviesScreen(
                 MovieFormDialog(
                     movie = editingMovie,
                     onDismiss = { showDialog = false },
-                    onSubmit = { title, desc, duration, lang, genre, rating, poster, audioTech, displayTech ->
+                    onSubmit = { title, desc, duration, lang, genre, rating, poster, audioTech, displayTech, isUpcoming ->
                         if (editingMovie == null) {
-                            viewModel.createMovie(title, desc, duration, lang, genre, rating, poster, audioTech, displayTech)
+                            viewModel.createMovie(title, desc, duration, lang, genre, rating, poster, audioTech, displayTech, isUpcoming)
                         } else {
-                            viewModel.updateMovie(editingMovie!!.id, title, desc, duration, lang, genre, rating, poster, audioTech, displayTech)
+                            viewModel.updateMovie(editingMovie!!.id, title, desc, duration, lang, genre, rating, poster, audioTech, displayTech, isUpcoming)
                         }
                         showDialog = false
                     }
@@ -165,6 +165,18 @@ fun MovieAdminCard(
                             text = if (movie.isActive) "Active" else "Deactivated",
                             style = CinemaTypography.labelMedium,
                             color = if (movie.isActive) SuccessGreen else ErrorRed,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        color = if (movie.isUpcoming) CinemaGold.copy(alpha = 0.15f) else SuccessGreen.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (movie.isUpcoming) "UPCOMING" else "NOW SHOWING",
+                            style = CinemaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (movie.isUpcoming) CinemaGold else SuccessGreen,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -232,7 +244,7 @@ fun MovieAdminCard(
 fun MovieFormDialog(
     movie: MovieDto?,
     onDismiss: () -> Unit,
-    onSubmit: (title: String, desc: String, duration: Int, lang: String, genre: String, rating: String, poster: String, audioTech: String, displayTech: String) -> Unit
+    onSubmit: (title: String, desc: String, duration: Int, lang: String, genre: String, rating: String, poster: String, audioTech: String, displayTech: String, isUpcoming: Boolean) -> Unit
 ) {
     var title by remember { mutableStateOf(movie?.title ?: "") }
     var description by remember { mutableStateOf(movie?.description ?: "") }
@@ -243,6 +255,7 @@ fun MovieFormDialog(
     var posterUrl by remember { mutableStateOf(movie?.posterUrl ?: "") }
     var audioTechnology by remember { mutableStateOf(movie?.audioTechnology ?: "Dolby Atmos") }
     var displayTechnology by remember { mutableStateOf(movie?.displayTechnology ?: "4K") }
+    var isUpcoming by remember { mutableStateOf(movie?.isUpcoming ?: true) }
 
     val audioOptions = listOf("Dolby Atmos", "Dolby Digital 5.1", "DTS", "DTS-HD", "7.1 Surround", "Stereo")
     val displayOptions = listOf("4K", "2K", "Full HD")
@@ -267,6 +280,38 @@ fun MovieFormDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Status Selector (NOW SHOWING vs UPCOMING)
+                Text("Movie Status", style = CinemaTypography.bodySmall, color = TextSecondary, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = !isUpcoming,
+                        onClick = { isUpcoming = false },
+                        label = { Text("NOW SHOWING", fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CinemaGold,
+                            selectedLabelColor = BackgroundDeep,
+                            containerColor = BackgroundElevated,
+                            labelColor = TextSecondary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = isUpcoming,
+                        onClick = { isUpcoming = true },
+                        label = { Text("UPCOMING", fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CinemaGold,
+                            selectedLabelColor = BackgroundDeep,
+                            containerColor = BackgroundElevated,
+                            labelColor = TextSecondary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -416,7 +461,7 @@ fun MovieFormDialog(
                 onClick = {
                     val durationInt = duration.toIntOrNull() ?: 120
                     if (title.isNotBlank()) {
-                        onSubmit(title, description, durationInt, language, genre, rating, posterUrl, audioTechnology, displayTechnology)
+                        onSubmit(title, description, durationInt, language, genre, rating, posterUrl, audioTechnology, displayTechnology, isUpcoming)
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = BackgroundDeep)

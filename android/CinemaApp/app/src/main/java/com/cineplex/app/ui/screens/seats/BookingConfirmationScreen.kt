@@ -11,10 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cineplex.app.R
 import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.theme.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +53,7 @@ fun BookingConfirmationScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Success",
+                        contentDescription = null,
                         tint = SuccessGreen,
                         modifier = Modifier.size(60.dp)
                     )
@@ -59,7 +62,7 @@ fun BookingConfirmationScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Booking Confirmed!",
+                    text = stringResource(id = R.string.booking_confirmed_header),
                     style = CinemaTypography.displayMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -68,7 +71,7 @@ fun BookingConfirmationScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "RNPS Home Cinema",
+                    text = stringResource(id = R.string.app_name),
                     style = CinemaTypography.bodyMedium,
                     color = CinemaGold,
                     fontWeight = FontWeight.SemiBold
@@ -86,7 +89,7 @@ fun BookingConfirmationScreen(
                         modifier = Modifier.padding(20.dp)
                     ) {
                         Text(
-                            text = "BOOKING REFERENCE",
+                            text = stringResource(id = R.string.label_booking_ref),
                             style = CinemaTypography.labelSmall.copy(color = TextSecondary)
                         )
                         Text(
@@ -98,11 +101,11 @@ fun BookingConfirmationScreen(
 
                         Divider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
 
-                        DetailRow(label = "Movie", value = movieTitle)
+                        DetailRow(label = stringResource(id = R.string.movie_label), value = movieTitle)
                         Spacer(modifier = Modifier.height(8.dp))
-                        DetailRow(label = "Screen", value = screenName)
+                        DetailRow(label = stringResource(id = R.string.screen_label), value = screenName)
                         Spacer(modifier = Modifier.height(8.dp))
-                        DetailRow(label = "Seats", value = seatsSummary)
+                        DetailRow(label = stringResource(id = R.string.label_seats), value = seatsSummary)
 
                         Divider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
 
@@ -112,12 +115,12 @@ fun BookingConfirmationScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Total Paid",
+                                text = stringResource(id = R.string.total_paid),
                                 style = CinemaTypography.bodyMedium,
                                 color = TextSecondary
                             )
                             Text(
-                                text = "$${String.format("%.2f", totalAmount)}",
+                                text = "₹${String.format(Locale.ENGLISH, "%.2f", totalAmount)}",
                                 style = CinemaTypography.headlineMedium,
                                 color = TextPrimary,
                                 fontWeight = FontWeight.Bold
@@ -129,7 +132,7 @@ fun BookingConfirmationScreen(
                 Spacer(modifier = Modifier.height(36.dp))
 
                 CinemaButton(
-                    text = "Back to Home",
+                    text = stringResource(id = R.string.back_to_home),
                     onClick = onNavigateToHome
                 )
             }

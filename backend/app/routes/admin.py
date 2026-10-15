@@ -2,7 +2,7 @@
 Admin management routes: Movie CRUD, Show CRUD, Snack CRUD, Payment verification & Ticket scanner.
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
@@ -104,11 +104,16 @@ def create_show(
     if not screen:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Screen not found")
 
+    end_time = request.end_time
+    if not end_time:
+        duration = movie.duration_minutes if movie.duration_minutes else 150
+        end_time = request.start_time + timedelta(minutes=duration)
+
     show = Show(
         movie_id=request.movie_id,
         screen_id=request.screen_id,
         start_time=request.start_time,
-        end_time=request.end_time,
+        end_time=end_time,
         base_price=request.base_price,
         is_active=True,
     )
@@ -147,8 +152,14 @@ def update_show(
     if not show:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Show not found")
 
-    for field, val in request.model_dump(exclude_unset=True).items():
+    update_data = request.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
         setattr(show, field, val)
+
+    if "start_time" in update_data and "end_time" not in update_data:
+        movie = show.movie or db.query(Movie).filter(Movie.id == show.movie_id).first()
+        duration = movie.duration_minutes if (movie and movie.duration_minutes) else 150
+        show.end_time = show.start_time + timedelta(minutes=duration)
 
     if request.base_price is not None and request.base_price > 0:
         db.query(ShowSeat).filter(

@@ -150,6 +150,7 @@ data class MovieCreateRequest(
     @SerialName("poster_url") val posterUrl: String? = null,
     @SerialName("audio_technology") val audioTechnology: String = "Dolby Atmos",
     @SerialName("display_technology") val displayTechnology: String = "4K",
+    @SerialName("is_upcoming") val isUpcoming: Boolean = true,
 )
 
 @Serializable
@@ -164,6 +165,7 @@ data class MovieUpdateRequest(
     @SerialName("poster_url") val posterUrl: String? = null,
     @SerialName("audio_technology") val audioTechnology: String? = null,
     @SerialName("display_technology") val displayTechnology: String? = null,
+    @SerialName("is_upcoming") val isUpcoming: Boolean? = null,
     @SerialName("is_active") val isActive: Boolean? = null,
 )
 
@@ -174,7 +176,7 @@ data class ShowCreateRequest(
     @SerialName("movie_id") val movieId: Int,
     @SerialName("screen_id") val screenId: Int,
     @SerialName("start_time") val startTime: String,
-    @SerialName("end_time") val endTime: String,
+    @SerialName("end_time") val endTime: String? = null,
     @SerialName("base_price") val basePrice: Double,
 )
 

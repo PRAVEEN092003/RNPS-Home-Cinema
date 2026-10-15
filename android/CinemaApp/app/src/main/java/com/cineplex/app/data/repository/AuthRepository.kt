@@ -54,6 +54,14 @@ class AuthRepository @Inject constructor(
         return state
     }
 
+    val languageFlow: kotlinx.coroutines.flow.Flow<String> = session.languageFlow
+
+    suspend fun getLanguage(): String = session.getLanguage()
+
+    suspend fun setLanguage(lang: String) {
+        session.setLanguage(lang)
+    }
+
     suspend fun logout() {
         session.clearSession()
     }

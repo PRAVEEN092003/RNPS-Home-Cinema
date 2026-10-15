@@ -24,17 +24,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.components.ErrorStateView
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
+import com.cineplex.app.util.DateTimeUtils
 import com.cineplex.app.util.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,12 +55,12 @@ fun FinalTicketScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Final Ticket & Summary", style = CinemaTypography.headlineSmall) },
+                title = { Text(stringResource(id = R.string.final_ticket_summary), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -76,14 +79,14 @@ fun FinalTicketScreen(
                 .padding(padding)
         ) {
             when (val state = bookingState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading ticket details...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(id = R.string.loading_ticket_details))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadBooking() })
                 is UiState.Error -> ErrorStateView(
                     message = state.message,
                     onRetry = { viewModel.loadBooking() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "Ticket details unavailable.",
+                    message = stringResource(id = R.string.ticket_details_unavailable),
                     onRetry = { viewModel.loadBooking() }
                 )
                 is UiState.Success -> {
@@ -141,7 +144,7 @@ fun FinalTicketContent(
                 ) {
                     Column {
                         Text(
-                            text = "RNPS HOME CINEMA",
+                            text = stringResource(id = R.string.app_name).uppercase(),
                             style = CinemaTypography.titleMedium.copy(
                                 color = CinemaGold,
                                 fontWeight = FontWeight.Bold,
@@ -149,7 +152,13 @@ fun FinalTicketContent(
                             )
                         )
                         Text(
-                            text = if (isPaid) "Official E-Ticket" else if (isPaymentSubmitted) "Payment Verification Pending" else "Booking Summary",
+                            text = if (isPaid) {
+                                stringResource(id = R.string.official_e_ticket)
+                            } else if (isPaymentSubmitted) {
+                                stringResource(id = R.string.payment_verification_pending)
+                            } else {
+                                stringResource(id = R.string.booking_summary)
+                            },
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
@@ -161,9 +170,9 @@ fun FinalTicketContent(
                         else -> CinemaGold
                     }
                     val badgeText = when {
-                        isPaid -> "CONFIRMED / PAID"
-                        isPaymentSubmitted -> "PAYMENT PENDING"
-                        else -> "UNPAID"
+                        isPaid -> stringResource(id = R.string.status_confirmed_paid)
+                        isPaymentSubmitted -> stringResource(id = R.string.status_payment_pending)
+                        else -> stringResource(id = R.string.status_unpaid)
                     }
 
                     Surface(
@@ -201,7 +210,7 @@ fun FinalTicketContent(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = booking.show?.movie?.title ?: "RNPS Cinema Movie",
+                            text = booking.show?.movie?.title ?: stringResource(id = R.string.app_name),
                             style = CinemaTypography.headlineSmall,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -209,16 +218,16 @@ fun FinalTicketContent(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        val timeStr = booking.show?.startTime?.replace("T", " ")?.take(16) ?: "Scheduled Show"
+                        val timeStr = DateTimeUtils.formatShowDateTime(booking.show?.startTime)
                         Text(
-                            text = "Date & Time: $timeStr",
+                            text = if (timeStr.isNotBlank()) stringResource(id = R.string.date_time_label, timeStr) else "",
                             style = CinemaTypography.bodySmall,
                             color = CinemaGold
                         )
 
                         booking.show?.movie?.durationMinutes?.let { dur ->
                             Text(
-                                text = "Runtime: $dur minutes",
+                                text = stringResource(id = R.string.runtime_format, dur),
                                 style = CinemaTypography.bodySmall,
                                 color = TextSecondary
                             )
@@ -239,7 +248,7 @@ fun FinalTicketContent(
                                     modifier = Modifier.padding(top = 4.dp)
                                 ) {
                                     Text(
-                                        text = "DOLBY ATMOS",
+                                        text = stringResource(id = R.string.dolby_atmos),
                                         style = CinemaTypography.labelSmall.copy(
                                             color = CinemaGold,
                                             fontWeight = FontWeight.ExtraBold,
@@ -265,13 +274,14 @@ fun FinalTicketContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        TicketLabel("SEATS")
+                        TicketLabel(stringResource(id = R.string.label_seats))
                         val seatCodes = booking.seats.joinToString(", ") { it.seatCode }
                         TicketValue(if (seatCodes.isNotBlank()) seatCodes else "N/A")
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        TicketLabel("TICKETS SUB-TOTAL")
-                        TicketValue("₹${String.format("%.2f", booking.ticketAmount.ifZero(booking.totalAmount))}")
+                        TicketLabel(stringResource(id = R.string.label_tickets_subtotal))
+                        val subtotal = if (booking.ticketAmount > 0.0) booking.ticketAmount else booking.seats.sumOf { it.price }
+                        TicketValue("₹${String.format(java.util.Locale.ENGLISH, "%.2f", subtotal)}")
                     }
                 }
 
@@ -283,16 +293,16 @@ fun FinalTicketContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TicketLabel("SNACKS & BEVERAGES")
+                    TicketLabel(stringResource(id = R.string.label_snacks_beverages))
                     if (!isPaymentSubmitted) {
                         IconButton(onClick = onEditSnacks, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Snacks", tint = CinemaGold)
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(id = R.string.edit_snacks), tint = CinemaGold)
                         }
                     }
                 }
 
                 if (booking.snacks.isEmpty()) {
-                    Text("No snacks added", style = CinemaTypography.bodySmall, color = TextDisabled)
+                    Text(stringResource(id = R.string.no_snacks_added), style = CinemaTypography.bodySmall, color = TextDisabled)
                 } else {
                     booking.snacks.forEach { snack ->
                         Row(
@@ -307,7 +317,7 @@ fun FinalTicketContent(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "₹${String.format("%.2f", snack.totalPrice)}",
+                                text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", snack.totalPrice)}",
                                 style = CinemaTypography.bodySmall,
                                 color = TextSecondary
                             )
@@ -319,7 +329,7 @@ fun FinalTicketContent(
                         horizontalArrangement = Arrangement.End
                     ) {
                         Text(
-                            text = "Snacks Total: ₹${String.format("%.2f", booking.snacksAmount)}",
+                            text = stringResource(id = R.string.snacks_total_format, String.format(java.util.Locale.ENGLISH, "%.2f", booking.snacksAmount)),
                             style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
                         )
                     }
@@ -338,7 +348,7 @@ fun FinalTicketContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        TicketLabel("BOOKING REF")
+                        TicketLabel(stringResource(id = R.string.label_booking_ref))
                         Text(
                             text = booking.bookingReference,
                             style = CinemaTypography.headlineSmall,
@@ -347,14 +357,17 @@ fun FinalTicketContent(
                         )
                         booking.ticket?.ticketCode?.let {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("Ticket Code: $it", style = CinemaTypography.labelSmall.copy(color = TextSecondary))
+                            Text(
+                                text = stringResource(id = R.string.ticket_code_label, it),
+                                style = CinemaTypography.labelSmall.copy(color = TextSecondary)
+                            )
                         }
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        TicketLabel(if (isPaid) "TOTAL PAID" else "PAYABLE TOTAL")
+                        TicketLabel(if (isPaid) stringResource(id = R.string.total_paid) else stringResource(id = R.string.payable_total))
                         Text(
-                            text = "₹${String.format("%.2f", booking.totalAmount)}",
+                            text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)}",
                             style = CinemaTypography.headlineLarge,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -383,7 +396,7 @@ fun FinalTicketContent(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = "Ticket QR Code",
+                                    contentDescription = stringResource(id = R.string.ticket_qr_code),
                                     tint = Color.Black,
                                     modifier = Modifier.size(80.dp)
                                 )
@@ -395,7 +408,7 @@ fun FinalTicketContent(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Scan at Cinema Entrance",
+                            text = stringResource(id = R.string.scan_cinema_entrance),
                             style = CinemaTypography.labelSmall.copy(color = TextSecondary)
                         )
                     }
@@ -423,7 +436,7 @@ fun FinalTicketContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Google Pay / UPI Payment",
+                        text = stringResource(id = R.string.upi_payment_title),
                         style = CinemaTypography.headlineSmall,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -432,7 +445,7 @@ fun FinalTicketContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Pay using GPay or any UPI App",
+                        text = stringResource(id = R.string.upi_payment_subtitle),
                         style = CinemaTypography.bodySmall,
                         color = TextSecondary,
                         textAlign = TextAlign.Center
@@ -449,15 +462,15 @@ fun FinalTicketContent(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                text = "Payee: $payeeName",
+                                text = stringResource(id = R.string.payee_label, payeeName),
                                 style = CinemaTypography.labelMedium.copy(color = TextPrimary, fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = "UPI ID: $upiId",
+                                text = stringResource(id = R.string.upi_id_label, upiId),
                                 style = CinemaTypography.labelSmall.copy(color = CinemaGold)
                             )
                             Text(
-                                text = "Total Payable: ₹${String.format("%.2f", booking.totalAmount)}",
+                                text = stringResource(id = R.string.total_payable_label, String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)),
                                 style = CinemaTypography.titleMedium.copy(color = CinemaGold, fontWeight = FontWeight.Bold),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
@@ -468,7 +481,7 @@ fun FinalTicketContent(
 
                     // 1. Launch GPay / UPI Intent
                     CinemaButton(
-                        text = "PAY NOW WITH GPAY / UPI",
+                        text = stringResource(id = R.string.btn_pay_now_upi),
                         onClick = {
                             launchUpiPaymentIntent(
                                 context = context,
@@ -493,7 +506,11 @@ fun FinalTicketContent(
                         if (isSubmittingPayment) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), color = CinemaGold, strokeWidth = 2.dp)
                         } else {
-                            Text("I HAVE PAID (SUBMIT PAYMENT)", style = CinemaTypography.labelLarge, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = stringResource(id = R.string.btn_i_have_paid),
+                                style = CinemaTypography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -529,7 +546,7 @@ fun FinalTicketContent(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (isPaid) "Ticket Confirmed!" else "Payment Status: PENDING",
+                        text = if (isPaid) stringResource(id = R.string.ticket_confirmed_title) else stringResource(id = R.string.payment_pending_title),
                         style = CinemaTypography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold,
@@ -539,10 +556,11 @@ fun FinalTicketContent(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = if (isPaid)
-                            "Your payment has been verified and confirmed by Admin. Enjoy your movie at RNPS Home Cinema!"
-                        else
-                            "Your payment is currently PENDING Admin confirmation. Once Admin approves, your ticket becomes fully active!",
+                        text = if (isPaid) {
+                            stringResource(id = R.string.ticket_confirmed_desc)
+                        } else {
+                            stringResource(id = R.string.payment_pending_desc)
+                        },
                         style = CinemaTypography.bodySmall,
                         color = TextSecondary,
                         textAlign = TextAlign.Center
@@ -554,7 +572,7 @@ fun FinalTicketContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         CinemaButton(
-            text = "Return to Home",
+            text = stringResource(id = R.string.return_to_home),
             onClick = onDone
         )
 
@@ -615,7 +633,7 @@ fun launchUpiPaymentIntent(
         .build()
 
     val gpayIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
-        setPackage("com.google.android.apps.n261")
+        setPackage("com.google.android.apps.nbu.paisa.user")
     }
 
     try {
@@ -623,12 +641,12 @@ fun launchUpiPaymentIntent(
     } catch (e: Exception) {
         val chooserIntent = android.content.Intent.createChooser(
             android.content.Intent(android.content.Intent.ACTION_VIEW, uri),
-            "Pay with UPI App"
+            context.getString(R.string.pay_with_upi)
         )
         try {
             context.startActivity(chooserIntent)
         } catch (ex: Exception) {
-            android.widget.Toast.makeText(context, "No UPI app available on device", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.no_upi_app), android.widget.Toast.LENGTH_LONG).show()
         }
     }
 }

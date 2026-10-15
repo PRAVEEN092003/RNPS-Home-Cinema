@@ -60,7 +60,7 @@ fun CinemaButton(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Please wait...",
+                    text = androidx.compose.ui.res.stringResource(id = com.cineplex.app.R.string.please_wait),
                     style = CinemaTypography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )

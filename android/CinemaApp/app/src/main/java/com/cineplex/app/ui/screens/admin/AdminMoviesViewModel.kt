@@ -45,7 +45,8 @@ class AdminMoviesViewModel @Inject constructor(
         rating: String,
         posterUrl: String,
         audioTechnology: String = "Dolby Atmos",
-        displayTechnology: String = "4K"
+        displayTechnology: String = "4K",
+        isUpcoming: Boolean = true,
     ) {
         viewModelScope.launch {
             val request = MovieCreateRequest(
@@ -57,7 +58,8 @@ class AdminMoviesViewModel @Inject constructor(
                 rating = rating.ifBlank { "U/A" },
                 posterUrl = posterUrl.ifBlank { null },
                 audioTechnology = audioTechnology,
-                displayTechnology = displayTechnology
+                displayTechnology = displayTechnology,
+                isUpcoming = isUpcoming,
             )
             when (val result = repository.createMovie(request)) {
                 is UiState.Success -> {
@@ -80,7 +82,8 @@ class AdminMoviesViewModel @Inject constructor(
         rating: String,
         posterUrl: String,
         audioTechnology: String = "Dolby Atmos",
-        displayTechnology: String = "4K"
+        displayTechnology: String = "4K",
+        isUpcoming: Boolean = false,
     ) {
         viewModelScope.launch {
             val request = MovieUpdateRequest(
@@ -92,7 +95,8 @@ class AdminMoviesViewModel @Inject constructor(
                 rating = rating.ifBlank { "U/A" },
                 posterUrl = posterUrl.ifBlank { null },
                 audioTechnology = audioTechnology,
-                displayTechnology = displayTechnology
+                displayTechnology = displayTechnology,
+                isUpcoming = isUpcoming,
             )
             when (val result = repository.updateMovie(movieId, request)) {
                 is UiState.Success -> {

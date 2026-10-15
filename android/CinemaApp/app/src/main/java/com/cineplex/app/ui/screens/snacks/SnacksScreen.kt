@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.data.model.SnackDto
 import com.cineplex.app.ui.components.CinemaButton
@@ -56,9 +58,9 @@ fun SnacksScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Add Cinema Snacks", style = CinemaTypography.headlineSmall)
+                        Text(stringResource(R.string.add_cinema_snacks), style = CinemaTypography.headlineSmall)
                         Text(
-                            text = "RNPS Home Cinema Snacks Menu",
+                            text = stringResource(R.string.snacks_menu_subtitle),
                             style = CinemaTypography.bodySmall,
                             color = CinemaGold
                         )
@@ -68,7 +70,7 @@ fun SnacksScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -87,14 +89,14 @@ fun SnacksScreen(
                 .padding(padding)
         ) {
             when (val state = snacksState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading snacks menu...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(R.string.loading_snacks_menu))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadSnacks() })
                 is UiState.Error -> ErrorStateView(
                     message = state.message,
                     onRetry = { viewModel.loadSnacks() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "Snacks menu unavailable.",
+                    message = stringResource(R.string.snacks_menu_unavailable),
                     onRetry = { viewModel.loadSnacks() }
                 )
                 is UiState.Success -> {
@@ -152,10 +154,18 @@ fun SnacksContent(
         ) {
             categories.forEach { cat ->
                 val isSelected = cat == selectedCategory
+                val labelText = when (cat) {
+                    "ALL" -> stringResource(R.string.category_all)
+                    "POPCORN" -> stringResource(R.string.category_popcorn)
+                    "DRINKS" -> stringResource(R.string.category_drinks)
+                    "COMBOS" -> stringResource(R.string.category_combos)
+                    "OTHER" -> stringResource(R.string.category_other)
+                    else -> cat
+                }
                 FilterChip(
                     selected = isSelected,
                     onClick = { onCategorySelected(cat) },
-                    label = { Text(cat) },
+                    label = { Text(labelText) },
                     modifier = Modifier.padding(end = 8.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = CinemaGold,
@@ -203,7 +213,7 @@ fun SnacksContent(
                 ) {
                     Column {
                         Text(
-                            text = if (totalItems > 0) "$totalItems Item(s) Added" else "No Snacks Selected",
+                            text = if (totalItems > 0) stringResource(R.string.items_added_count, totalItems) else stringResource(R.string.no_snacks_selected),
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
@@ -216,7 +226,7 @@ fun SnacksContent(
                     }
 
                     CinemaButton(
-                        text = if (totalItems > 0) "Continue (₹${String.format("%.2f", totalPrice)})" else "Continue to Summary",
+                        text = if (totalItems > 0) stringResource(R.string.continue_with_amount, String.format("%.2f", totalPrice)) else stringResource(R.string.continue_to_summary),
                         onClick = if (totalItems > 0) onContinue else onSkip,
                         isLoading = isSaving,
                         modifier = Modifier.width(200.dp)
@@ -229,7 +239,7 @@ fun SnacksContent(
                         onClick = onSkip,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Skip Snacks & Continue", color = TextSecondary, style = CinemaTypography.bodySmall)
+                        Text(stringResource(R.string.skip_snacks_continue), color = TextSecondary, style = CinemaTypography.bodySmall)
                     }
                 }
             }
@@ -307,7 +317,7 @@ fun SnackItemCard(
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
-                    Text("Add", style = CinemaTypography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.add_snack), style = CinemaTypography.labelMedium, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Row(
@@ -317,7 +327,7 @@ fun SnackItemCard(
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = TextPrimary)
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.decrease), tint = TextPrimary)
                     }
                     Text(
                         text = "$quantity",
@@ -327,7 +337,7 @@ fun SnackItemCard(
                         modifier = Modifier.padding(horizontal = 6.dp)
                     )
                     IconButton(onClick = onIncrement, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = "Increase", tint = CinemaGold)
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.increase), tint = CinemaGold)
                     }
                 }
             }

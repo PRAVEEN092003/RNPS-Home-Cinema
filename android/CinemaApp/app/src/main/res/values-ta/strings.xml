@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & General -->
+    <string name="app_name">RNPS Home Cinema</string>
+    <string name="tagline">தனித்துவமான திரையரங்க அனுபவம்</string>
+    <string name="loading">ஏற்றுகிறது…</string>
+    <string name="please_wait">தயவுசெய்து காத்திருக்கவும்…</string>
+    <string name="error_generic">ஏதோ தவறு நிகழ்ந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="error_no_internet">இணைய இணைப்பு இல்லை</string>
+    <string name="error_no_internet_desc">உங்கள் இணைய இணைப்பை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="retry">மீண்டும் முயற்சி செய்க</string>
+    <string name="back">பின்செல்</string>
+    <string name="decrease">எண்ணிக்கையைக் குறைக்க</string>
+    <string name="increase">எண்ணிக்கையை அதிகரிக்க</string>
+    <string name="no_items_found">தகவல்கள் ஏதுமில்லை</string>
+
+    <!-- Language Selection -->
+    <string name="language_label">மொழி</string>
+    <string name="lang_english">English</string>
+    <string name="lang_tamil">தமிழ்</string>
+    <string name="select_language">மொழியைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="language_setting_title">Language / மொழி</string>
+    <string name="language_setting_subtitle">Choose app language / செயலி மொழி</string>
+
+    <!-- Auth -->
+    <string name="login">உள்நுழைக</string>
+    <string name="sign_in">உள்நுழைக</string>
+    <string name="register">பதிவு செய்க</string>
+    <string name="logout">வெளியேறு</string>
+    <string name="welcome_back">மீண்டும் வருக!</string>
+    <string name="sign_in_subtitle">உங்கள் சினிமா கணக்கில் உள்நுழையவும்</string>
+    <string name="create_account">புதிய கணக்கு தொடங்கு</string>
+    <string name="create_account_subtitle">உங்களுக்கு பிடித்த இருக்கைகளை முன்பதிவு செய்ய இணையுங்கள்</string>
+    <string name="email">மின்னஞ்சல்</string>
+    <string name="email_address">மின்னஞ்சல் முகவரி</string>
+    <string name="password">கடவுச்சொல்</string>
+    <string name="full_name">முழு பெயர்</string>
+    <string name="phone">தொலைபேசி எண்</string>
+    <string name="phone_optional">தொலைபேசி எண் (விருப்பத்தேர்வு)</string>
+    <string name="dont_have_account">கணக்கு இல்லையா? </string>
+    <string name="already_have_account">ஏற்கனவே கணக்கு உள்ளதா? </string>
+    <string name="toggle_password_visibility">கடவுச்சொல் பார்வையை மாற்றுக</string>
+    <string name="error_network_check">இணைய இணைப்பு இல்லை. நெட்வொர்க்கை சரிபார்க்கவும்.</string>
+    <string name="error_enter_email">உங்கள் மின்னஞ்சல் முகவரியை உள்ளிடவும்.</string>
+    <string name="error_enter_password">உங்கள் கடவுச்சொல்லை உள்ளிடவும்.</string>
+    <string name="error_enter_name">உங்கள் முழு பெயரை உள்ளிடவும்.</string>
+
+    <!-- Home -->
+    <string name="home">முகப்பு</string>
+    <string name="profile">சுயவிவரம்</string>
+    <string name="welcome_user">வணக்கம், %1$s</string>
+    <string name="now_showing">திரையிடப்படும் படங்கள்</string>
+    <string name="currently_running_movies">தற்போது ஓடும் படங்கள்</string>
+    <string name="upcoming_movies">விரைவில் வரும் படங்கள்</string>
+    <string name="no_currently_running">தற்போது ஓடும் படங்கள் ஏதுமில்லை.</string>
+    <string name="no_upcoming_scheduled">வரவிருக்கும் படங்கள் ஏதுமில்லை.</string>
+    <string name="no_movies_scheduled">படங்கள் எதுவும் திட்டமிடப்படவில்லை.</string>
+    <string name="admin_badge">நிர்வாகி</string>
+
+    <!-- Movie Details -->
+    <string name="movie_details">திரைப்பட விவரங்கள்</string>
+    <string name="loading_movie_details">திரைப்பட விவரங்கள் ஏற்றப்படுகின்றன…</string>
+    <string name="movie_details_unavailable">திரைப்பட விவரங்கள் கிடைக்கவில்லை.</string>
+    <string name="synopsis">கதைக்களம்</string>
+    <string name="director_prefix">இயக்குநர்: %1$s</string>
+    <string name="cast_prefix">நடிகர்கள்: %1$s</string>
+    <string name="duration_minutes_suffix">%1$d நிமிடங்கள்</string>
+    <string name="duration_genre_format">%1$d நிமிடம் • %2$s</string>
+    <string name="select_show_time">காட்சியைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="failed_load_showtimes">காட்சிகளை ஏற்றுவதில் தோல்வி.</string>
+    <string name="no_internet_showtimes">காட்சிகளைப் பெற இணைய இணைப்பு இல்லை.</string>
+    <string name="no_shows_scheduled">இப்படத்திற்கு தற்போது காட்சிகள் ஏதுமில்லை.</string>
+    <string name="book_tickets">முன்பதிவு செய்க</string>
+    <string name="book_ticket">டிக்கெட் முன்பதிவு</string>
+    <string name="ticket_price_format">டிக்கெட் கட்டணம்: ₹%1$s</string>
+    <string name="dolby_atmos">DOLBY ATMOS</string>
+    <string name="cinema_experience">சினிமா அனுபவம்</string>
+    <string name="atmos_desc">வியக்கத்தக்க பல பரிமாண ஒலி அனுபவம்</string>
+    <string name="surround_audio_desc">உயர்தர சரவுண்ட் ஆடியோ அமைப்பு</string>
+    <string name="audio">ஆடியோ</string>
+
+    <!-- Date Group Labels -->
+    <string name="date_today">இன்று</string>
+    <string name="date_tomorrow">நாளை</string>
+    <string name="date_yesterday">நேற்று</string>
+
+    <!-- Seats Selection -->
+    <string name="select_seats">இருக்கைகளைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="loading_seat_layout">இருக்கை அமைப்பு ஏற்றப்படுகிறது…</string>
+    <string name="seat_map_unavailable">இருக்கை வரைபடம் கிடைக்கவில்லை.</string>
+    <string name="screen_this_way">திரை இந்த திசையில்</string>
+    <string name="seat_available">காலியாக உள்ளது</string>
+    <string name="seat_selected">தேர்ந்தெடுக்கப்பட்டது</string>
+    <string name="seat_booked">முன்பதிவானது</string>
+    <string name="seats_selected_count">%1$d இருக்கைகள் தேர்வு</string>
+    <string name="confirm_booking">முன்பதிவை உறுதி செய்க</string>
+    <string name="dialog_snacks_title">சிற்றுண்டிகள் சேர்க்க வேண்டுமா?</string>
+    <string name="dialog_snacks_desc">திரைப்பட டிக்கெட்டுடன் சுவையான சிற்றுண்டிகள் மற்றும் பானங்களை சேர்க்க விரும்புகிறீர்களா?</string>
+    <string name="dialog_snacks_yes">ஆம், சிற்றுண்டிகள் சேர்க்கவும்</string>
+    <string name="dialog_snacks_no">வேண்டாம், சுருக்கத்திற்கு செல்லவும்</string>
+
+    <!-- Snacks Screen -->
+    <string name="add_cinema_snacks">திரையரங்கு சிற்றுண்டிகள்</string>
+    <string name="snacks_menu_subtitle">RNPS சினிமா சிற்றுண்டி பட்டியல்</string>
+    <string name="loading_snacks_menu">சிற்றுண்டி பட்டியல் ஏற்றப்படுகிறது…</string>
+    <string name="snacks_menu_unavailable">சிற்றுண்டி பட்டியல் கிடைக்கவில்லை.</string>
+    <string name="no_snacks_category">இந்த பிரிவில் சிற்றுண்டிகள் இல்லை.</string>
+    <string name="category_all">அனைத்தும்</string>
+    <string name="category_popcorn">பாப்கார்ன்</string>
+    <string name="category_drinks">குளிர்பானங்கள்</string>
+    <string name="category_combos">காம்போஸ்</string>
+    <string name="category_other">இதர</string>
+    <string name="add_snack">சேர்க்க</string>
+    <string name="items_selected">%1$d பொருட்கள் • ₹%2$s</string>
+    <string name="items_added_count">%1$d பொருட்கள் சேர்க்கப்பட்டன</string>
+    <string name="no_snacks_selected">சிற்றுண்டிகள் தேர்ந்தெடுக்கப்படவில்லை</string>
+    <string name="continue_with_amount">தொடர்க (₹%1$s)</string>
+    <string name="skip_snacks_continue">சிற்றுண்டிகளை தவிர்த்து தொடர்க</string>
+    <string name="continue_to_summary">சுருக்கத்திற்கு தொடர்க</string>
+
+    <!-- Final Ticket & Payment -->
+    <string name="final_ticket_summary">இறுதி டிக்கெட் மற்றும் சுருக்கம்</string>
+    <string name="loading_ticket_details">டிக்கெட் விவரங்கள் ஏற்றப்படுகின்றன…</string>
+    <string name="ticket_details_unavailable">டிக்கெட் விவரங்கள் கிடைக்கவில்லை.</string>
+    <string name="official_e_ticket">அதிகாரப்பூர்வ இ-டிக்கெட்</string>
+    <string name="payment_verification_pending">பணம் சரிபார்ப்பு நிலுவையில் உள்ளது</string>
+    <string name="booking_summary">முன்பதிவு சுருக்கம்</string>
+    <string name="status_confirmed_paid">உறுதியானது / செலுத்தப்பட்டது</string>
+    <string name="status_payment_pending">பணம் நிலுவையில் உள்ளது</string>
+    <string name="status_unpaid">செலுத்தப்படவில்லை</string>
+    <string name="date_time_label">நாள் &amp; நேரம்: %1$s</string>
+    <string name="runtime_format">கால அளவு: %1$d நிமிடங்கள்</string>
+    <string name="label_seats">இருக்கைகள்</string>
+    <string name="label_tickets_subtotal">டிக்கெட் கட்டணம்</string>
+    <string name="label_snacks_beverages">சிற்றுண்டி &amp; பானங்கள்</string>
+    <string name="no_snacks_added">சிற்றுண்டிகள் சேர்க்கப்படவில்லை</string>
+    <string name="snacks_total_format">சிற்றுண்டி மொத்தம்: ₹%1$s</string>
+    <string name="label_booking_ref">முன்பதிவு எண்</string>
+    <string name="ticket_code_label">டிக்கெட் குறியீடு: %1$s</string>
+    <string name="total_paid">செலுத்தப்பட்ட தொகை</string>
+    <string name="payable_total">செலுத்த வேண்டிய மொத்த தொகை</string>
+    <string name="scan_cinema_entrance">திரையரங்கு நுழைவாயிலில் ஸ்கேன் செய்யவும்</string>
+    <string name="upi_payment_title">Google Pay / UPI கட்டணம்</string>
+    <string name="upi_payment_subtitle">GPay அல்லது ஏதேனும் UPI செயலி மூலம் செலுத்தவும்</string>
+    <string name="payee_label">பெறுநர்: %1$s</string>
+    <string name="upi_id_label">UPI ID: %1$s</string>
+    <string name="total_payable_label">செலுத்த வேண்டிய தொகை: ₹%1$s</string>
+    <string name="btn_pay_now_upi">GPAY / UPI மூலம் இப்போது செலுத்தவும்</string>
+    <string name="btn_i_have_paid">பணம் செலுத்திவிட்டேன் (சமர்ப்பிக்கவும்)</string>
+    <string name="ticket_confirmed_title">டிக்கெட் உறுதியானது!</string>
+    <string name="payment_pending_title">கட்டண நிலை: நிலுவையில்</string>
+    <string name="ticket_confirmed_desc">உங்கள் கட்டணம் நிர்வாகியால் சரிபார்க்கப்பட்டு உறுதியானது. RNPS திரையரங்கில் படத்தை கண்டு மகிழுங்கள்!</string>
+    <string name="payment_pending_desc">உங்கள் கட்டணம் நிர்வாகி சரிபார்ப்புக்காக நிலுவையில் உள்ளது. உறுதி செய்தவுடன் டிக்கெட் செயல்படும்!</string>
+    <string name="return_to_home">முகப்புக்கு திரும்பு</string>
+    <string name="edit_snacks">சிற்றுண்டிகளை திருத்து</string>
+    <string name="ticket_qr_code">டிக்கெட் QR குறியீடு</string>
+    <string name="no_upi_app">சாதனத்தில் UPI செயலி எதுவும் இல்லை</string>
+    <string name="pay_with_upi">UPI செயலி மூலம் செலுத்தவும்</string>
+
+    <!-- My Bookings -->
+    <string name="my_bookings">எனது முன்பதிவுகள்</string>
+    <string name="tab_all_bookings">அனைத்து முன்பதிவுகள்</string>
+    <string name="tab_pending">நிலுவையில்</string>
+    <string name="tab_confirmed">உறுதியானது</string>
+    <string name="tab_cancelled">ரத்து / நிராகரிப்பு</string>
+    <string name="no_bookings_title">முன்பதிவுகள் ஏதுமில்லை</string>
+    <string name="no_bookings_desc">நீங்கள் இதுவரை எந்த முன்பதிவும் செய்யவில்லை.</string>
+    <string name="browse_movies">படங்களை காண்க</string>
+    <string name="view_ticket_action">டிக்கெட் &amp; QR காண்க ></string>
+    <string name="status_confirmed_issued">உறுதியானது / டிக்கெட் வழங்கப்பட்டது</string>
+    <string name="status_cancelled_rejected">ரத்து / நிராகரிக்கப்பட்டது</string>
+    <string name="status_pending_admin">நிர்வாகி உறுதிப்படுத்தல் நிலுவையில்</string>
+    <string name="total_amount_label">மொத்த தொகை</string>
+    <string name="seats_with_value">இருக்கைகள்: %1$s</string>
+    <string name="seats_count_format">%1$s • %2$d இருக்கைகள்</string>
+
+    <!-- Profile -->
+    <string name="my_profile">எனது சுயவிவரம்</string>
+    <string name="loading_profile">சுயவிவரம் ஏற்றப்படுகிறது…</string>
+    <string name="user_data_unavailable">பயனர் விவரங்கள் கிடைக்கவில்லை</string>
+    <string name="view_all">அனைத்தும் காண்க ></string>
+    <string name="admin_control_center">நிர்வாக கட்டுப்பாட்டு மையம்</string>
+    <string name="open_dashboard">டாஷ்போர்டு திறக்க ></string>
+    <string name="verify_payments_admin">கட்டணங்களை சரிபார்க்க (நிர்வாகி)</string>
+    <string name="manage_action">நிர்வகி ></string>
+    <string name="verify_ticket_qr_admin">டிக்கெட் QR சரிபார்க்க (நிர்வாகி)</string>
+    <string name="scan_action">ஸ்கேன் ></string>
+    <string name="user_id_label">பயனர் எண்</string>
+    <string name="not_provided">வழங்கப்படவில்லை</string>
+
+    <!-- Booking Confirmation & Detail -->
+    <string name="booking_confirmed_header">முன்பதிவு உறுதியானது!</string>
+    <string name="back_to_home">முகப்புக்கு திரும்புக</string>
+    <string name="movie_label">திரைப்படம்</string>
+    <string name="screen_label">திரை</string>
+    <string name="ticket_details_title">டிக்கெட் விவரங்கள்</string>
+    <string name="ticket_details_not_found">டிக்கெட் விவரங்கள் கிடைக்கவில்லை.</string>
+    <string name="rating_label">மதிப்பீடு</string>
+</resources>

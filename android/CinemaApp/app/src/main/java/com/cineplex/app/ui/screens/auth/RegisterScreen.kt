@@ -23,6 +23,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.cineplex.app.R
 import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.components.CinemaTextField
 import com.cineplex.app.ui.theme.*
@@ -64,14 +66,14 @@ fun RegisterScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Create Account",
+                    text = stringResource(id = R.string.create_account),
                     style = CinemaTypography.displayMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Join RNPS Home Cinema to book your favourite seats",
+                    text = stringResource(id = R.string.create_account_subtitle),
                     style = CinemaTypography.bodyMedium,
                     color = TextSecondary,
                 )
@@ -80,7 +82,7 @@ fun RegisterScreen(
                 CinemaTextField(
                     value = name,
                     onValueChange = { viewModel.nameState.value = it },
-                    label = "Full Name",
+                    label = stringResource(id = R.string.full_name),
                     leadingIcon = Icons.Default.Person,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 )
@@ -90,7 +92,7 @@ fun RegisterScreen(
                 CinemaTextField(
                     value = email,
                     onValueChange = { viewModel.emailState.value = it },
-                    label = "Email Address",
+                    label = stringResource(id = R.string.email_address),
                     leadingIcon = Icons.Default.Email,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
@@ -103,7 +105,7 @@ fun RegisterScreen(
                 CinemaTextField(
                     value = phone,
                     onValueChange = { viewModel.phoneState.value = it },
-                    label = "Phone Number (Optional)",
+                    label = stringResource(id = R.string.phone_optional),
                     leadingIcon = Icons.Default.Phone,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Phone,
@@ -116,14 +118,14 @@ fun RegisterScreen(
                 CinemaTextField(
                     value = password,
                     onValueChange = { viewModel.passwordState.value = it },
-                    label = "Password",
+                    label = stringResource(id = R.string.password),
                     leadingIcon = Icons.Default.Lock,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle password visibility",
+                                contentDescription = stringResource(id = R.string.toggle_password_visibility),
                                 tint = IconTint,
                             )
                         }
@@ -144,7 +146,7 @@ fun RegisterScreen(
                 } else if (registerState is UiState.Offline) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No internet connection. Please check network.",
+                        text = stringResource(id = R.string.error_network_check),
                         color = WarningAmber,
                         style = CinemaTypography.bodySmall,
                     )
@@ -153,7 +155,7 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(28.dp))
 
                 CinemaButton(
-                    text = "Register",
+                    text = stringResource(id = R.string.register),
                     onClick = { viewModel.register() },
                     isLoading = registerState is UiState.Loading,
                 )
@@ -164,12 +166,12 @@ fun RegisterScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Already have an account? ",
+                        text = stringResource(id = R.string.already_have_account),
                         style = CinemaTypography.bodyMedium,
                         color = TextSecondary,
                     )
                     Text(
-                        text = "Sign In",
+                        text = stringResource(id = R.string.sign_in),
                         style = CinemaTypography.bodyMedium.copy(
                             color = CinemaGold,
                             fontWeight = FontWeight.Bold,

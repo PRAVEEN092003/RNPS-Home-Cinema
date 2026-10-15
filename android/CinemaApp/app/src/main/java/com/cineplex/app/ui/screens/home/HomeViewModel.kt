@@ -27,14 +27,24 @@ class HomeViewModel @Inject constructor(
     val userState: StateFlow<UserDto?> = _userState.asStateFlow()
 
     init {
-        loadData()
+        val cached = movieRepository.getCachedMovies()
+        if (cached != null) {
+            _moviesState.value = UiState.Success(cached)
+        }
+        loadData(showLoading = cached == null)
     }
 
-    fun loadData() {
+    fun loadData(showLoading: Boolean = true, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _userState.value = authRepository.getCachedUser()
-            _moviesState.value = UiState.Loading
-            _moviesState.value = movieRepository.getMovies()
+            val cached = movieRepository.getCachedMovies()
+            if (cached != null) {
+                _moviesState.value = UiState.Success(cached)
+            } else if (showLoading && _moviesState.value !is UiState.Success) {
+                _moviesState.value = UiState.Loading
+            }
+            val result = movieRepository.getMovies(forceRefresh = forceRefresh)
+            _moviesState.value = result
         }
     }
 }

@@ -30,8 +30,9 @@ class SplashViewModel @Inject constructor(
 
     private fun checkSession() {
         viewModelScope.launch {
-            kotlinx.coroutines.delay(1200) // Smooth splash animation duration
-            if (authRepository.isLoggedIn()) {
+            val loggedIn = authRepository.isLoggedIn()
+            kotlinx.coroutines.delay(350) // Quick smooth brand impression without stalling startup
+            if (loggedIn) {
                 _destination.value = SplashDestination.Home
             } else {
                 _destination.value = SplashDestination.Login

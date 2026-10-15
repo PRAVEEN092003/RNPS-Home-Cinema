@@ -368,7 +368,6 @@ def test_stale_250_seats_sync_on_retrieval_and_booking():
     token = get_auth_token()
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.config.database import SessionLocal
     from app.models.models import ShowSeat
 
     movies = client.get("/api/movies/", headers=headers).json()
@@ -389,7 +388,7 @@ def test_stale_250_seats_sync_on_retrieval_and_booking():
     show_id = show_res.json()["id"]
 
     # 2. Artificially simulate stale ₹250 prices in database for this show's seats
-    db = SessionLocal()
+    db = TestingSessionLocal()
     try:
         db.query(ShowSeat).filter(ShowSeat.show_id == show_id).update({ShowSeat.price: 250.0})
         db.commit()
@@ -402,7 +401,7 @@ def test_stale_250_seats_sync_on_retrieval_and_booking():
         assert s["price"] == 10.0, f"Expected self-healed price 10.0, got {s['price']}"
 
     # 4. Verify in DB that ShowSeat.price was synchronized to 10.0
-    db = SessionLocal()
+    db = TestingSessionLocal()
     try:
         db_seats = db.query(ShowSeat).filter(ShowSeat.show_id == show_id).all()
         for dbs in db_seats:
@@ -432,3 +431,106 @@ def test_stale_250_seats_sync_on_retrieval_and_booking():
     )
     assert pay_res.status_code == 200
     assert pay_res.json()["payment"]["amount"] == 30.0
+
+
+def test_show_creation_without_end_time_auto_derives_duration():
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create a movie with 120 minutes duration
+    movie_res = client.post(
+        "/api/admin/movies/",
+        headers=headers,
+        json={
+            "title": "Test Duration Movie",
+            "duration_minutes": 120,
+            "language": "Tamil",
+            "is_upcoming": False
+        }
+    )
+    assert movie_res.status_code == 201
+    movie_id = movie_res.json()["id"]
+
+    screens = client.get("/api/admin/screens/", headers=headers).json()
+    screen_id = screens[0]["id"]
+
+    # Create show without end_time
+    show_res = client.post(
+        "/api/admin/shows/",
+        headers=headers,
+        json={
+            "movie_id": movie_id,
+            "screen_id": screen_id,
+            "start_time": "2026-10-25T14:30:00",
+            "base_price": 50.0
+        }
+    )
+    assert show_res.status_code == 201
+    show_data = show_res.json()
+    assert show_data["start_time"] == "2026-10-25T14:30:00"
+    # End time should be exactly 120 minutes later (16:30:00)
+    assert show_data["end_time"] == "2026-10-25T16:30:00"
+
+
+def test_movie_status_now_showing_and_upcoming_separation_and_update():
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Create an UPCOMING movie
+    upcoming_res = client.post(
+        "/api/admin/movies/",
+        headers=headers,
+        json={
+            "title": "Upcoming Blockbuster",
+            "duration_minutes": 150,
+            "language": "Tamil",
+            "is_upcoming": True
+        }
+    )
+    assert upcoming_res.status_code == 201
+    upcoming_movie = upcoming_res.json()
+    assert upcoming_movie["is_upcoming"] is True
+    upcoming_id = upcoming_movie["id"]
+
+    # 2. Create a NOW SHOWING movie
+    showing_res = client.post(
+        "/api/admin/movies/",
+        headers=headers,
+        json={
+            "title": "Now Showing Hit",
+            "duration_minutes": 135,
+            "language": "Tamil",
+            "is_upcoming": False
+        }
+    )
+    assert showing_res.status_code == 201
+    showing_movie = showing_res.json()
+    assert showing_movie["is_upcoming"] is False
+    showing_id = showing_movie["id"]
+
+    # 3. Test filtering: only upcoming
+    upcoming_list = client.get("/api/movies/?is_upcoming=true", headers=headers).json()
+    upcoming_ids = [m["id"] for m in upcoming_list]
+    assert upcoming_id in upcoming_ids
+    assert showing_id not in upcoming_ids
+
+    # 4. Test filtering: only now showing
+    showing_list = client.get("/api/movies/?is_upcoming=false", headers=headers).json()
+    showing_ids = [m["id"] for m in showing_list]
+    assert showing_id in showing_ids
+    assert upcoming_id not in showing_ids
+
+    # 5. Update upcoming movie to NOW SHOWING
+    update_res = client.put(
+        f"/api/admin/movies/{upcoming_id}",
+        headers=headers,
+        json={"is_upcoming": False}
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["is_upcoming"] is False
+
+    # 6. Verify it now appears in NOW SHOWING list
+    refreshed_showing_list = client.get("/api/movies/?is_upcoming=false", headers=headers).json()
+    refreshed_ids = [m["id"] for m in refreshed_showing_list]
+    assert upcoming_id in refreshed_ids
+

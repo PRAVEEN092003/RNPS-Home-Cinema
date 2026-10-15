@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.cineplex.app.R
 import com.cineplex.app.data.model.MovieDto
 import com.cineplex.app.ui.components.CinemaImage
 import com.cineplex.app.ui.components.EmptyStateView
@@ -42,13 +44,26 @@ fun HomeScreen(
     val moviesState by viewModel.moviesState.collectAsState()
     val user by viewModel.userState.collectAsState()
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadData(showLoading = false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text(
-                            text = "RNPS HOME CINEMA",
+                            text = stringResource(id = R.string.app_name).uppercase(),
                             style = CinemaTypography.titleMedium.copy(
                                 color = CinemaGold,
                                 fontWeight = FontWeight.Bold,
@@ -56,7 +71,7 @@ fun HomeScreen(
                             )
                         )
                         Text(
-                            text = if (user != null) "Welcome, ${user?.name}" else "Now Showing",
+                            text = if (user != null) stringResource(id = R.string.welcome_user, user?.name ?: "") else stringResource(id = R.string.now_showing),
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
@@ -70,7 +85,7 @@ fun HomeScreen(
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
-                                text = "ADMIN",
+                                text = stringResource(id = R.string.admin_badge),
                                 style = CinemaTypography.labelSmall.copy(color = CinemaGold),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
@@ -79,7 +94,7 @@ fun HomeScreen(
                     IconButton(onClick = onNavigateToProfile) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Profile",
+                            contentDescription = stringResource(id = R.string.profile),
                             tint = TextPrimary
                         )
                     }
@@ -104,14 +119,14 @@ fun HomeScreen(
                     message = state.message,
                     onRetry = { viewModel.loadData() }
                 )
-                is UiState.Empty -> EmptyStateView(message = "No movies currently scheduled.")
+                is UiState.Empty -> EmptyStateView(message = stringResource(id = R.string.no_movies_scheduled))
                 is UiState.Success -> {
                     val movies = state.data
                     val currentlyRunning = movies.filter { !it.isUpcoming }
                     val upcoming = movies.filter { it.isUpcoming }
 
                     if (movies.isEmpty()) {
-                        EmptyStateView(message = "No movies currently scheduled.")
+                        EmptyStateView(message = stringResource(id = R.string.no_movies_scheduled))
                     } else {
                         LazyColumn(
                             contentPadding = PaddingValues(16.dp),
@@ -121,7 +136,7 @@ fun HomeScreen(
                             item {
                                 Column {
                                     Text(
-                                        text = "Currently Running Movies",
+                                        text = stringResource(id = R.string.currently_running_movies),
                                         style = CinemaTypography.headlineMedium,
                                         color = TextPrimary,
                                         fontWeight = FontWeight.Bold,
@@ -130,7 +145,7 @@ fun HomeScreen(
 
                                     if (currentlyRunning.isEmpty()) {
                                         Text(
-                                            text = "No currently running movies.",
+                                            text = stringResource(id = R.string.no_currently_running),
                                             style = CinemaTypography.bodyMedium,
                                             color = TextSecondary
                                         )
@@ -152,7 +167,7 @@ fun HomeScreen(
                             // ─── Upcoming Movies (Below) ──────────────────────
                             item {
                                 Text(
-                                    text = "Upcoming Movies",
+                                    text = stringResource(id = R.string.upcoming_movies),
                                     style = CinemaTypography.headlineMedium,
                                     color = TextPrimary,
                                     fontWeight = FontWeight.Bold,
@@ -163,7 +178,7 @@ fun HomeScreen(
                             if (upcoming.isEmpty()) {
                                 item {
                                     Text(
-                                        text = "No upcoming movies scheduled.",
+                                        text = stringResource(id = R.string.no_upcoming_scheduled),
                                         style = CinemaTypography.bodyMedium,
                                         color = TextSecondary
                                     )
@@ -239,7 +254,7 @@ fun MovieCard(
                         Spacer(modifier = Modifier.width(8.dp))
                     }
                     Text(
-                        text = "${movie.durationMinutes} mins",
+                        text = stringResource(id = R.string.duration_minutes_suffix, movie.durationMinutes),
                         style = CinemaTypography.bodySmall,
                         color = TextSecondary
                     )
@@ -311,7 +326,7 @@ fun MovieCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Star,
-                                contentDescription = "Rating",
+                                contentDescription = stringResource(id = R.string.rating_label),
                                 tint = WarningAmber,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -368,7 +383,7 @@ fun CurrentlyRunningMovieCard(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "${movie.durationMinutes} mins • ${movie.genre ?: "Cinema"}",
+                text = stringResource(id = R.string.duration_genre_format, movie.durationMinutes, movie.genre ?: "Cinema"),
                 style = CinemaTypography.bodySmall,
                 color = CinemaGold,
                 maxLines = 1,

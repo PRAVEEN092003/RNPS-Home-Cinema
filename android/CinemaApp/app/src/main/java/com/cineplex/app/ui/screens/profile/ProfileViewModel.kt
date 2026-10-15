@@ -12,10 +12,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
+
+    val languageState: StateFlow<String> = authRepository.languageFlow
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            "en"
+        )
+
+    fun setLanguage(lang: String) {
+        viewModelScope.launch {
+            authRepository.setLanguage(lang)
+        }
+    }
 
     private val _userState = MutableStateFlow<UiState<UserDto>>(UiState.Loading)
     val userState: StateFlow<UiState<UserDto>> = _userState.asStateFlow()

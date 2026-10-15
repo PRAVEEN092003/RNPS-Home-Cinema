@@ -42,6 +42,17 @@ import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
 import com.cineplex.app.util.UiState
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.cineplex.app.util.DateTimeUtils
+import java.time.LocalDate
+import java.util.Locale
+
+import androidx.compose.ui.res.stringResource
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDetailScreen(
@@ -51,15 +62,28 @@ fun MovieDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadMovieAndShows()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Movie Details", style = CinemaTypography.headlineSmall) },
+                title = { Text(stringResource(id = R.string.movie_details), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -78,14 +102,14 @@ fun MovieDetailScreen(
                 .padding(padding)
         ) {
             when (val movieState = state.movieState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading movie details...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(id = R.string.loading_movie_details))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadMovieAndShows() })
                 is UiState.Error -> ErrorStateView(
                     message = movieState.message,
                     onRetry = { viewModel.loadMovieAndShows() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "Movie details unavailable.",
+                    message = stringResource(id = R.string.movie_details_unavailable),
                     onRetry = { viewModel.loadMovieAndShows() }
                 )
                 is UiState.Success -> {
@@ -158,7 +182,7 @@ fun MovieDetailContent(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${movie.durationMinutes} minutes",
+                        text = stringResource(id = R.string.duration_minutes_suffix, movie.durationMinutes),
                         style = CinemaTypography.bodySmall,
                         color = TextSecondary
                     )
@@ -170,7 +194,7 @@ fun MovieDetailContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Star,
-                            contentDescription = "Rating",
+                            contentDescription = stringResource(id = R.string.rating_label),
                             tint = WarningAmber,
                             modifier = Modifier.size(18.dp)
                         )
@@ -194,7 +218,7 @@ fun MovieDetailContent(
         // Description Section
         movie.description?.let {
             Text(
-                text = "Synopsis",
+                text = stringResource(id = R.string.synopsis),
                 style = CinemaTypography.headlineMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
@@ -212,14 +236,14 @@ fun MovieDetailContent(
         // Director & Cast
         movie.director?.let {
             Text(
-                text = "Director: $it",
+                text = stringResource(id = R.string.director_prefix, it),
                 style = CinemaTypography.bodyMedium.copy(color = TextPrimary, fontWeight = FontWeight.SemiBold)
             )
             Spacer(modifier = Modifier.height(4.dp))
         }
         movie.cast?.let {
             Text(
-                text = "Cast: $it",
+                text = stringResource(id = R.string.cast_prefix, it),
                 style = CinemaTypography.bodyMedium.copy(color = TextSecondary)
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -227,7 +251,7 @@ fun MovieDetailContent(
 
         // Showtimes Section
         Text(
-            text = "Select Show Time",
+            text = stringResource(id = R.string.select_show_time),
             style = CinemaTypography.headlineMedium,
             color = TextPrimary,
             fontWeight = FontWeight.Bold
@@ -245,24 +269,53 @@ fun MovieDetailContent(
                 }
             }
             is UiState.Error -> {
-                Text("Failed to load showtimes.", color = ErrorRed, style = CinemaTypography.bodyMedium)
+                Text(stringResource(id = R.string.failed_load_showtimes), color = ErrorRed, style = CinemaTypography.bodyMedium)
             }
             is UiState.Offline -> {
-                Text("No internet connection to fetch showtimes.", color = WarningAmber, style = CinemaTypography.bodyMedium)
+                Text(stringResource(id = R.string.no_internet_showtimes), color = WarningAmber, style = CinemaTypography.bodyMedium)
             }
             is UiState.Empty -> {
-                Text("No shows currently scheduled for this movie.", color = TextSecondary, style = CinemaTypography.bodyMedium)
+                Text(stringResource(id = R.string.no_shows_scheduled), color = TextSecondary, style = CinemaTypography.bodyMedium)
             }
             is UiState.Success -> {
                 if (showsState.data.isEmpty()) {
-                    Text("No shows currently scheduled for this movie.", color = TextSecondary, style = CinemaTypography.bodyMedium)
+                    Text(stringResource(id = R.string.no_shows_scheduled), color = TextSecondary, style = CinemaTypography.bodyMedium)
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        showsState.data.forEach { show ->
-                            ShowTimeCard(
-                                show = show,
-                                onBookTickets = { onSelectShow(show.id) }
+                    val groupedShows = remember(showsState.data) {
+                        showsState.data
+                            .map { show ->
+                                val dt = DateTimeUtils.parseLocalDateTime(show.startTime)
+                                Pair(dt, show)
+                            }
+                            .sortedWith(compareBy({ it.first.toLocalDate() }, { it.first.toLocalTime() }))
+                            .groupBy(
+                                keySelector = { it.first.toLocalDate() },
+                                valueTransform = { it.second }
                             )
+                    }
+
+                    val todayLabel = stringResource(id = R.string.date_today)
+                    val tomorrowLabel = stringResource(id = R.string.date_tomorrow)
+                    val yesterdayLabel = stringResource(id = R.string.date_yesterday)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        groupedShows.forEach { (date, showsOnDate) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                DateGroupHeader(
+                                    date = date,
+                                    todayLabel = todayLabel,
+                                    tomorrowLabel = tomorrowLabel,
+                                    yesterdayLabel = yesterdayLabel
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    showsOnDate.forEach { show ->
+                                        ShowTimeCard(
+                                            show = show,
+                                            onBookTickets = { onSelectShow(show.id) }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -272,11 +325,57 @@ fun MovieDetailContent(
 }
 
 @Composable
+fun DateGroupHeader(
+    date: LocalDate,
+    todayLabel: String = "TODAY",
+    tomorrowLabel: String = "TOMORROW",
+    yesterdayLabel: String = "YESTERDAY"
+) {
+    val headerText = DateTimeUtils.formatDateGroupHeader(
+        date = date,
+        todayLabel = todayLabel,
+        tomorrowLabel = tomorrowLabel,
+        yesterdayLabel = yesterdayLabel
+    )
+    val isToday = date == LocalDate.now()
+    val isTomorrow = date == LocalDate.now().plusDays(1)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            color = if (isToday) CinemaGold else if (isTomorrow) CinemaGold.copy(alpha = 0.2f) else BackgroundElevated,
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = headerText,
+                style = CinemaTypography.titleMedium.copy(
+                    color = if (isToday) BackgroundDeep else if (isTomorrow) CinemaGold else TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                ),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = if (isToday) CinemaGold.copy(alpha = 0.4f) else Divider
+        )
+    }
+}
+
+@Composable
 fun ShowTimeCard(
     show: ShowDto,
     onBookTickets: () -> Unit,
 ) {
     val screen = show.screen
+    val formattedTime = DateTimeUtils.formatShowTime(show.startTime)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -311,7 +410,7 @@ fun ShowTimeCard(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "DOLBY ATMOS",
+                            text = stringResource(id = R.string.dolby_atmos),
                             style = CinemaTypography.labelSmall.copy(
                                 color = CinemaGold,
                                 fontWeight = FontWeight.ExtraBold,
@@ -330,23 +429,22 @@ fun ShowTimeCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val timeString = show.startTime.split("T").getOrNull(1)?.take(5) ?: show.startTime
                 Column {
                     Text(
-                        text = timeString,
+                        text = formattedTime,
                         style = CinemaTypography.headlineLarge,
                         color = TextPrimary,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
-                        text = "Ticket Price: ₹${String.format("%.2f", show.basePrice)}",
+                        text = stringResource(id = R.string.ticket_price_format, String.format(Locale.ENGLISH, "%.2f", show.basePrice)),
                         style = CinemaTypography.bodySmall,
                         color = CinemaGold
                     )
                 }
 
                 CinemaButton(
-                    text = "BOOK TICKETS",
+                    text = stringResource(id = R.string.book_tickets),
                     onClick = onBookTickets,
                     modifier = Modifier.width(140.dp)
                 )
@@ -396,7 +494,7 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "CINEMA EXPERIENCE",
+                    text = stringResource(id = R.string.cinema_experience),
                     style = CinemaTypography.labelSmall.copy(
                         color = CinemaGold,
                         fontWeight = FontWeight.ExtraBold,
@@ -440,7 +538,7 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Breathtaking multi-dimensional sound immersion",
+                            text = stringResource(id = R.string.atmos_desc),
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
@@ -480,7 +578,7 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "High-fidelity surround audio format",
+                            text = stringResource(id = R.string.surround_audio_desc),
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
@@ -492,7 +590,7 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                         border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.3f))
                     ) {
                         Text(
-                            text = "AUDIO",
+                            text = stringResource(id = R.string.audio),
                             style = CinemaTypography.labelSmall.copy(
                                 color = TextPrimary,
                                 fontWeight = FontWeight.Bold

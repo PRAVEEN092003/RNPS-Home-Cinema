@@ -15,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.components.ErrorStateView
@@ -27,9 +29,8 @@ import com.cineplex.app.ui.components.ListLoadingSkeleton
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
+import com.cineplex.app.util.DateTimeUtils
 import com.cineplex.app.util.UiState
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,12 +46,12 @@ fun MyBookingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Bookings", style = CinemaTypography.headlineSmall) },
+                title = { Text(stringResource(id = R.string.my_bookings), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -84,22 +85,22 @@ fun MyBookingsScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("All Bookings", style = CinemaTypography.titleMedium) }
+                    text = { Text(stringResource(id = R.string.tab_all_bookings), style = CinemaTypography.titleMedium) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Pending", style = CinemaTypography.titleMedium) }
+                    text = { Text(stringResource(id = R.string.tab_pending), style = CinemaTypography.titleMedium) }
                 )
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Confirmed", style = CinemaTypography.titleMedium) }
+                    text = { Text(stringResource(id = R.string.tab_confirmed), style = CinemaTypography.titleMedium) }
                 )
                 Tab(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
-                    text = { Text("Cancelled/Rejected", style = CinemaTypography.titleMedium) }
+                    text = { Text(stringResource(id = R.string.tab_cancelled), style = CinemaTypography.titleMedium) }
                 )
             }
 
@@ -156,9 +157,9 @@ fun BookingCard(
         else -> WarningAmber
     }
     val badgeText = when {
-        isConfirmed -> "CONFIRMED / TICKET ISSUED"
-        isCancelled -> "CANCELLED / REJECTED"
-        else -> "PENDING ADMIN CONFIRMATION"
+        isConfirmed -> stringResource(id = R.string.status_confirmed_issued)
+        isCancelled -> stringResource(id = R.string.status_cancelled_rejected)
+        else -> stringResource(id = R.string.status_pending_admin)
     }
 
     Card(
@@ -203,16 +204,28 @@ fun BookingCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = booking.show?.movie?.title ?: "RNPS Home Cinema Movie",
+                text = booking.show?.movie?.title ?: stringResource(id = R.string.app_name),
                 style = CinemaTypography.headlineSmall,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
 
+            val showDateTimeStr = DateTimeUtils.formatShowDateTime(booking.show?.startTime)
+            if (showDateTimeStr.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = showDateTimeStr,
+                    style = CinemaTypography.bodySmall,
+                    color = CinemaGold,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
+            val screenName = booking.show?.screen?.name ?: stringResource(id = R.string.screen_label)
             Text(
-                text = "${booking.show?.screen?.name ?: "Screen"} • ${booking.totalSeats} Seats",
+                text = stringResource(id = R.string.seats_count_format, screenName, booking.totalSeats),
                 style = CinemaTypography.bodyMedium,
                 color = TextSecondary
             )
@@ -222,7 +235,7 @@ fun BookingCard(
             val seatCodes = booking.seats.joinToString(", ") { it.seatCode }
             if (seatCodes.isNotBlank()) {
                 Text(
-                    text = "Seats: $seatCodes",
+                    text = stringResource(id = R.string.seats_with_value, seatCodes),
                     style = CinemaTypography.bodySmall,
                     color = CinemaGold
                 )
@@ -236,12 +249,12 @@ fun BookingCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Total Amount",
+                    text = stringResource(id = R.string.total_amount_label),
                     style = CinemaTypography.bodySmall,
                     color = TextSecondary
                 )
                 Text(
-                    text = "₹${String.format("%.2f", booking.totalAmount)}",
+                    text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)}",
                     style = CinemaTypography.titleLarge,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -273,21 +286,21 @@ fun EmptyBookingsView(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No bookings yet",
+                text = stringResource(id = R.string.no_bookings_title),
                 style = CinemaTypography.headlineMedium,
                 color = TextPrimary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Explore current movies showing at RNPS Home Cinema and book your seats!",
+                text = stringResource(id = R.string.no_bookings_desc),
                 style = CinemaTypography.bodyMedium,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(24.dp))
             CinemaButton(
-                text = "Explore Movies",
+                text = stringResource(id = R.string.browse_movies),
                 onClick = onBrowseMovies,
                 modifier = Modifier.width(200.dp)
             )

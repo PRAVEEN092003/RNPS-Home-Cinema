@@ -9,14 +9,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.cineplex.app.R
 import com.cineplex.app.ui.theme.*
 
 @Composable
 fun LoadingStateView(
     modifier: Modifier = Modifier,
-    message: String = "Loading...",
+    message: String = stringResource(id = R.string.loading),
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -58,13 +60,13 @@ fun ErrorStateView(
         ) {
             Icon(
                 imageVector = Icons.Default.ErrorOutline,
-                contentDescription = "Error",
+                contentDescription = null,
                 tint = ErrorRed,
                 modifier = Modifier.size(64.dp),
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Something went wrong",
+                text = stringResource(id = R.string.error_generic),
                 style = CinemaTypography.headlineMedium,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
@@ -85,7 +87,7 @@ fun ErrorStateView(
                         contentColor = TextOnGold,
                     ),
                 ) {
-                    Text(text = "Retry", style = CinemaTypography.labelLarge)
+                    Text(text = stringResource(id = R.string.retry), style = CinemaTypography.labelLarge)
                 }
             }
         }
@@ -109,20 +111,20 @@ fun OfflineStateView(
         ) {
             Icon(
                 imageVector = Icons.Default.CloudOff,
-                contentDescription = "No Internet",
+                contentDescription = null,
                 tint = WarningAmber,
                 modifier = Modifier.size(64.dp),
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No Internet Connection",
+                text = stringResource(id = R.string.error_no_internet),
                 style = CinemaTypography.headlineMedium,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Please check your connection and try again.",
+                text = stringResource(id = R.string.error_no_internet_desc),
                 style = CinemaTypography.bodyMedium,
                 color = TextSecondary,
                 textAlign = TextAlign.Center,
@@ -135,7 +137,7 @@ fun OfflineStateView(
                     contentColor = TextOnGold,
                 ),
             ) {
-                Text(text = "Retry", style = CinemaTypography.labelLarge)
+                Text(text = stringResource(id = R.string.retry), style = CinemaTypography.labelLarge)
             }
         }
     }
@@ -143,7 +145,7 @@ fun OfflineStateView(
 
 @Composable
 fun EmptyStateView(
-    message: String = "No items found",
+    message: String = stringResource(id = R.string.no_items_found),
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -158,7 +160,7 @@ fun EmptyStateView(
         ) {
             Icon(
                 imageVector = Icons.Default.Inbox,
-                contentDescription = "Empty",
+                contentDescription = null,
                 tint = TextDisabled,
                 modifier = Modifier.size(64.dp),
             )

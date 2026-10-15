@@ -4,13 +4,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +27,7 @@ import com.cineplex.app.data.model.ShowDto
 import com.cineplex.app.ui.components.ErrorStateView
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.theme.*
+import com.cineplex.app.util.DateTimeUtils
 import com.cineplex.app.util.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,15 +177,17 @@ fun ShowAdminCard(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${show.screen?.name ?: "Screen #${show.screenId}"} • Price: ₹${"%.2f".format(show.basePrice)}",
+                    text = "${show.screen?.name ?: "Screen #${show.screenId}"} • Price: ₹${String.format(java.util.Locale.ENGLISH, "%.2f", show.basePrice)}",
                     style = CinemaTypography.bodyMedium,
                     color = CinemaGold,
                     fontWeight = FontWeight.Bold
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Time: ${show.startTime.replace("T", " ").take(16)}",
+                    text = "${DateTimeUtils.formatShowDate(show.startTime)} • ${DateTimeUtils.formatShowTime(show.startTime)}",
                     style = CinemaTypography.bodySmall,
-                    color = TextSecondary
+                    color = TextSecondary,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
@@ -202,14 +209,29 @@ fun ShowFormDialog(
     show: ShowDto?,
     movies: List<MovieDto>,
     onDismiss: () -> Unit,
-    onSubmit: (movieId: Int, screenId: Int, startTime: String, endTime: String, price: Double) -> Unit
+    onSubmit: (movieId: Int, screenId: Int, startTime: String, endTime: String?, price: Double) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     var selectedMovieId by remember { mutableStateOf(show?.movieId ?: movies.firstOrNull()?.id ?: 1) }
     var selectedScreenId by remember { mutableStateOf(show?.screenId ?: 1) }
-    var startTime by remember { mutableStateOf(show?.startTime ?: "2026-10-06T18:00:00") }
-    var endTime by remember { mutableStateOf(show?.endTime ?: "2026-10-06T20:30:00") }
-    var basePriceStr by remember { mutableStateOf(show?.basePrice?.toString() ?: "250.0") }
 
+    // Parse initial date & time safely without timezone shift
+    val initialDt = remember(show) {
+        if (show != null) DateTimeUtils.parseLocalDateTime(show.startTime)
+        else java.time.LocalDateTime.now().plusDays(1).withHour(18).withMinute(0)
+    }
+
+    var selectedDate by remember { mutableStateOf(initialDt.toLocalDate()) }
+    val (initialHour12, initialIsAm) = remember(initialDt) {
+        DateTimeUtils.to12Hour(initialDt.hour)
+    }
+    var selectedHour12 by remember { mutableIntStateOf(initialHour12) }
+    var selectedMinute by remember { mutableIntStateOf(initialDt.minute) }
+    var isAm by remember { mutableStateOf(initialIsAm) }
+
+    var basePriceStr by remember { mutableStateOf(show?.basePrice?.let { if (it > 0) it.toString() else "" } ?: "") }
+    var priceError by remember { mutableStateOf<String?>(null) }
     var movieDropdownExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -225,17 +247,19 @@ fun ShowFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Select Movie Dropdown
-                Text("Select Movie", style = CinemaTypography.bodySmall, color = TextSecondary)
+                Text("Select Movie", style = CinemaTypography.bodySmall, color = TextSecondary, fontWeight = FontWeight.Bold)
                 Box {
                     val currentMovieTitle = movies.find { it.id == selectedMovieId }?.title ?: "Select Movie"
                     OutlinedButton(
                         onClick = { movieDropdownExpanded = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f))
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -263,7 +287,7 @@ fun ShowFormDialog(
                 }
 
                 // Select Screen
-                Text("Select Screen", style = CinemaTypography.bodySmall, color = TextSecondary)
+                Text("Select Screen", style = CinemaTypography.bodySmall, color = TextSecondary, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedScreenId == 1,
@@ -271,7 +295,9 @@ fun ShowFormDialog(
                         label = { Text("Screen 1 (Standard)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep
+                            selectedLabelColor = BackgroundDeep,
+                            containerColor = BackgroundCard,
+                            labelColor = TextSecondary
                         )
                     )
                     FilterChip(
@@ -280,31 +306,206 @@ fun ShowFormDialog(
                         label = { Text("Screen 2 (VIP)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep
+                            selectedLabelColor = BackgroundDeep,
+                            containerColor = BackgroundCard,
+                            labelColor = TextSecondary
                         )
                     )
                 }
 
-                OutlinedTextField(
-                    value = startTime,
-                    onValueChange = { startTime = it },
-                    label = { Text("Start Time (YYYY-MM-DDTHH:MM:SS)") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
-                )
+                // Show Date Selection
+                Text("Show Date", style = CinemaTypography.bodySmall, color = TextSecondary, fontWeight = FontWeight.Bold)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val dialog = android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, dayOfMonth ->
+                                    selectedDate = java.time.LocalDate.of(year, month + 1, dayOfMonth)
+                                },
+                                selectedDate.year,
+                                selectedDate.monthValue - 1,
+                                selectedDate.dayOfMonth
+                            )
+                            dialog.show()
+                        },
+                    color = BackgroundCard,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = null, tint = CinemaGold)
+                            Text(
+                                text = DateTimeUtils.formatShowDate(selectedDate),
+                                style = CinemaTypography.titleMedium.copy(color = TextPrimary, fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        Text(
+                            text = "Change",
+                            style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
 
-                OutlinedTextField(
-                    value = endTime,
-                    onValueChange = { endTime = it },
-                    label = { Text("End Time (YYYY-MM-DDTHH:MM:SS)") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
-                )
+                // Show Time Selection (12-Hour AM/PM)
+                Text("Show Time (12-Hour AM/PM)", style = CinemaTypography.bodySmall, color = TextSecondary, fontWeight = FontWeight.Bold)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = DateTimeUtils.formatTime12H(selectedHour12, selectedMinute, isAm),
+                                style = CinemaTypography.headlineMedium.copy(color = CinemaGold, fontWeight = FontWeight.ExtraBold)
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    val currentH24 = DateTimeUtils.to24Hour(selectedHour12, isAm)
+                                    val timeDialog = android.app.TimePickerDialog(
+                                        context,
+                                        { _, hourOfDay, minuteOfHour ->
+                                            val (h12, am) = DateTimeUtils.to12Hour(hourOfDay)
+                                            selectedHour12 = h12
+                                            selectedMinute = minuteOfHour
+                                            isAm = am
+                                        },
+                                        currentH24,
+                                        selectedMinute,
+                                        false // 12-hour format with AM/PM selector
+                                    )
+                                    timeDialog.show()
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = CinemaGold),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.6f)),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clock", style = CinemaTypography.labelSmall)
+                            }
+                        }
 
+                        // Quick controls for Hour, Minute, AM/PM
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Hour Dropdown (01..12)
+                            var hourExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { hourExpanded = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = String.format(java.util.Locale.ENGLISH, "%02d", selectedHour12),
+                                        style = CinemaTypography.bodyMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                DropdownMenu(expanded = hourExpanded, onDismissRequest = { hourExpanded = false }) {
+                                    (1..12).forEach { h ->
+                                        DropdownMenuItem(
+                                            text = { Text(String.format(java.util.Locale.ENGLISH, "%02d", h)) },
+                                            onClick = {
+                                                selectedHour12 = h
+                                                hourExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Minute Dropdown (00, 05, 10, ..., 55)
+                            var minuteExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { minuteExpanded = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = String.format(java.util.Locale.ENGLISH, "%02d", selectedMinute),
+                                        style = CinemaTypography.bodyMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                DropdownMenu(expanded = minuteExpanded, onDismissRequest = { minuteExpanded = false }) {
+                                    listOf(0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55).forEach { m ->
+                                        DropdownMenuItem(
+                                            text = { Text(String.format(java.util.Locale.ENGLISH, "%02d", m)) },
+                                            onClick = {
+                                                selectedMinute = m
+                                                minuteExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // AM / PM Toggle
+                            Row(modifier = Modifier.weight(1.3f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                FilterChip(
+                                    selected = isAm,
+                                    onClick = { isAm = true },
+                                    label = { Text("AM", fontWeight = FontWeight.Bold, style = CinemaTypography.labelSmall) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = CinemaGold,
+                                        selectedLabelColor = BackgroundDeep,
+                                        containerColor = BackgroundElevated,
+                                        labelColor = TextSecondary
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = !isAm,
+                                    onClick = { isAm = false },
+                                    label = { Text("PM", fontWeight = FontWeight.Bold, style = CinemaTypography.labelSmall) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = CinemaGold,
+                                        selectedLabelColor = BackgroundDeep,
+                                        containerColor = BackgroundElevated,
+                                        labelColor = TextSecondary
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Base Ticket Price
                 OutlinedTextField(
                     value = basePriceStr,
-                    onValueChange = { basePriceStr = it },
+                    onValueChange = {
+                        basePriceStr = it
+                        priceError = null
+                    },
                     label = { Text("Ticket Price (₹)") },
+                    isError = priceError != null,
+                    supportingText = priceError?.let { err -> { Text(err, color = ErrorRed) } },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
                 )
@@ -313,8 +514,18 @@ fun ShowFormDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val price = basePriceStr.toDoubleOrNull() ?: 250.0
-                    onSubmit(selectedMovieId, selectedScreenId, startTime, endTime, price)
+                    val price = basePriceStr.toDoubleOrNull()
+                    if (price == null || price <= 0.0) {
+                        priceError = "Please enter a valid ticket price (greater than ₹0)"
+                        return@Button
+                    }
+                    val startIso = DateTimeUtils.createIsoDateTime(selectedDate, selectedHour12, selectedMinute, isAm)
+                    val selectedMovie = movies.find { it.id == selectedMovieId }
+                    val durationMins = selectedMovie?.durationMinutes ?: 150
+                    val startDt = DateTimeUtils.parseLocalDateTime(startIso)
+                    val endDt = startDt.plusMinutes(durationMins.toLong())
+                    val endIso = endDt.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    onSubmit(selectedMovieId, selectedScreenId, startIso, endIso, price)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = BackgroundDeep)
             ) {

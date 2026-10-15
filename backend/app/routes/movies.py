@@ -1,7 +1,7 @@
 """
 Movie listing routes. Read-only for users.
 """
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.config.database import get_db
@@ -14,11 +14,15 @@ router = APIRouter(prefix="/movies", tags=["Movies"])
 
 @router.get("/", response_model=List[MovieResponse])
 def list_movies(
+    is_upcoming: Optional[bool] = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """List all currently active movies."""
-    movies = db.query(Movie).filter(Movie.is_active == True).all()
+    """List all currently active movies, optionally filtered by status (upcoming or now showing)."""
+    query = db.query(Movie).filter(Movie.is_active == True)
+    if is_upcoming is not None:
+        query = query.filter(Movie.is_upcoming == is_upcoming)
+    movies = query.all()
     return [MovieResponse.model_validate(m) for m in movies]
 
 

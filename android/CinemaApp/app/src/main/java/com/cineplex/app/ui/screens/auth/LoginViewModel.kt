@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -22,6 +25,19 @@ class LoginViewModel @Inject constructor(
 
     private val _loginState = MutableStateFlow<UiState<TokenResponse>?>(null)
     val loginState: StateFlow<UiState<TokenResponse>?> = _loginState.asStateFlow()
+
+    val languageState: StateFlow<String> = authRepository.languageFlow
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            "en"
+        )
+
+    fun setLanguage(lang: String) {
+        viewModelScope.launch {
+            authRepository.setLanguage(lang)
+        }
+    }
 
     fun login() {
         val email = emailState.value.trim()

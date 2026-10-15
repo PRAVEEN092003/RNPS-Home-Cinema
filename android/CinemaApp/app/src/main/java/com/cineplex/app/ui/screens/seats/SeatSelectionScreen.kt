@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.data.model.ShowDetailsWithSeatsDto
 import com.cineplex.app.data.model.ShowSeatDto
@@ -61,8 +63,8 @@ fun SeatSelectionScreen(
     if (pendingBooking != null) {
         AlertDialog(
             onDismissRequest = { /* force choice */ },
-            title = { Text("Do you want snacks?", style = CinemaTypography.headlineSmall, color = TextPrimary) },
-            text = { Text("Would you like to add delicious snacks & beverages to your movie ticket?", style = CinemaTypography.bodyMedium, color = TextSecondary) },
+            title = { Text(stringResource(id = R.string.dialog_snacks_title), style = CinemaTypography.headlineSmall, color = TextPrimary) },
+            text = { Text(stringResource(id = R.string.dialog_snacks_desc), style = CinemaTypography.bodyMedium, color = TextSecondary) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -71,7 +73,7 @@ fun SeatSelectionScreen(
                         onBookingSuccessWithSnacks(b)
                     }
                 ) {
-                    Text("YES, ADD SNACKS", color = CinemaGold, fontWeight = FontWeight.Bold)
+                    Text(stringResource(id = R.string.dialog_snacks_yes), color = CinemaGold, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -82,7 +84,7 @@ fun SeatSelectionScreen(
                         onBookingSuccessWithoutSnacks(b)
                     }
                 ) {
-                    Text("NO, CONTINUE TO SUMMARY", color = TextSecondary)
+                    Text(stringResource(id = R.string.dialog_snacks_no), color = TextSecondary)
                 }
             },
             containerColor = BackgroundCard,
@@ -95,9 +97,9 @@ fun SeatSelectionScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Select Seats", style = CinemaTypography.headlineSmall)
+                        Text(stringResource(id = R.string.select_seats), style = CinemaTypography.headlineSmall)
                         Text(
-                            text = "RNPS Home Cinema",
+                            text = stringResource(id = R.string.app_name),
                             style = CinemaTypography.bodySmall,
                             color = CinemaGold
                         )
@@ -126,14 +128,14 @@ fun SeatSelectionScreen(
                 .padding(padding)
         ) {
             when (val state = seatsState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading seat layout...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(id = R.string.loading_seat_layout))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadSeats() })
                 is UiState.Error -> ErrorStateView(
                     message = state.message,
                     onRetry = { viewModel.loadSeats() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "Seat map unavailable.",
+                    message = stringResource(id = R.string.seat_map_unavailable),
                     onRetry = { viewModel.loadSeats() }
                 )
                 is UiState.Success -> {
@@ -141,8 +143,8 @@ fun SeatSelectionScreen(
                         data = state.data,
                         selectedSeatIds = selectedSeatIds,
                         onSeatClick = { viewModel.toggleSeatSelection(it) },
-                        totalPrice = viewModel.calculateTotal(state.data.seats),
-                        onConfirmBooking = { viewModel.confirmBooking() },
+                        totalPrice = viewModel.calculateTotal(state.data.seats, state.data.show.basePrice),
+                        onConfirmBooking = { viewModel.confirmBooking(state.data.show.basePrice) },
                         isBookingLoading = bookingState is UiState.Loading,
                         bookingError = (bookingState as? UiState.Error)?.message
                     )
@@ -195,7 +197,7 @@ fun SeatSelectionContent(
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
                         Text(
-                            text = "DOLBY ATMOS",
+                            text = stringResource(id = R.string.dolby_atmos),
                             style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -215,7 +217,7 @@ fun SeatSelectionContent(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "SCREEN THIS WAY",
+                text = stringResource(id = R.string.screen_this_way),
                 style = CinemaTypography.labelSmall.copy(
                     color = TextDisabled,
                     letterSpacing = 2.sp
@@ -233,9 +235,9 @@ fun SeatSelectionContent(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LegendItem(color = BackgroundElevated, label = "Available")
-            LegendItem(color = CinemaGold, label = "Selected")
-            LegendItem(color = ErrorRed.copy(alpha = 0.4f), label = "Booked")
+            LegendItem(color = BackgroundElevated, label = stringResource(id = R.string.seat_available))
+            LegendItem(color = CinemaGold, label = stringResource(id = R.string.seat_selected))
+            LegendItem(color = ErrorRed.copy(alpha = 0.4f), label = stringResource(id = R.string.seat_booked))
         }
 
         if (bookingError != null) {
@@ -316,12 +318,12 @@ fun SeatSelectionContent(
             ) {
                 Column {
                     Text(
-                        text = "${selectedSeatIds.size} Seats Selected",
+                        text = stringResource(id = R.string.seats_selected_count, selectedSeatIds.size),
                         style = CinemaTypography.bodySmall,
                         color = TextSecondary
                     )
                     Text(
-                        text = "₹${String.format("%.2f", totalPrice)}",
+                        text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", totalPrice)}",
                         style = CinemaTypography.displayMedium,
                         color = CinemaGold,
                         fontWeight = FontWeight.Bold
@@ -329,7 +331,7 @@ fun SeatSelectionContent(
                 }
 
                 CinemaButton(
-                    text = "Confirm Booking",
+                    text = stringResource(id = R.string.confirm_booking),
                     onClick = onConfirmBooking,
                     enabled = selectedSeatIds.isNotEmpty(),
                     isLoading = isBookingLoading,

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,11 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cineplex.app.R
 import com.cineplex.app.data.model.UserDto
 import com.cineplex.app.ui.components.ErrorStateView
+import com.cineplex.app.ui.components.LanguageSelector
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
@@ -42,16 +46,17 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val userState by viewModel.userState.collectAsState()
+    val currentLanguage by viewModel.languageState.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Profile", style = CinemaTypography.headlineSmall) },
+                title = { Text(stringResource(id = R.string.my_profile), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -70,19 +75,21 @@ fun ProfileScreen(
                 .padding(padding)
         ) {
             when (val state = userState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading profile...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(id = R.string.loading_profile))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadProfile() })
                 is UiState.Error -> ErrorStateView(
                     message = state.message,
                     onRetry = { viewModel.loadProfile() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "User data not available",
+                    message = stringResource(id = R.string.user_data_unavailable),
                     onRetry = { viewModel.loadProfile() }
                 )
                 is UiState.Success -> {
                     ProfileContent(
                         user = state.data,
+                        currentLanguage = currentLanguage,
+                        onLanguageSelected = { viewModel.setLanguage(it) },
                         onLogout = { viewModel.logout(onLogout) },
                         onNavigateToBookings = onNavigateToBookings,
                         onNavigateToAdminDashboard = onNavigateToAdminDashboard,
@@ -98,6 +105,8 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     user: UserDto,
+    currentLanguage: String,
+    onLanguageSelected: (String) -> Unit,
     onLogout: () -> Unit,
     onNavigateToBookings: () -> Unit = {},
     onNavigateToAdminDashboard: () -> Unit = {},
@@ -151,8 +160,62 @@ fun ProfileContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
+        // ─── Language Selection Card ───────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(CinemaGold.copy(alpha = 0.3f))
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = null,
+                        tint = CinemaGold,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(id = R.string.language_setting_title),
+                            style = CinemaTypography.bodyMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(id = R.string.language_setting_subtitle),
+                            style = CinemaTypography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                LanguageSelector(
+                    currentLanguage = currentLanguage,
+                    onLanguageSelected = onLanguageSelected,
+                    showLabel = false,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // ─── My Bookings Card ──────────────────────────────────────────────
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -175,9 +238,18 @@ fun ProfileContent(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("My Bookings", style = CinemaTypography.bodyMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(id = R.string.my_bookings),
+                        style = CinemaTypography.bodyMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                Text("View All >", style = CinemaTypography.bodySmall, color = CinemaGold)
+                Text(
+                    text = stringResource(id = R.string.view_all),
+                    style = CinemaTypography.bodySmall,
+                    color = CinemaGold
+                )
             }
         }
 
@@ -206,9 +278,18 @@ fun ProfileContent(
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text("Admin Control Center", style = CinemaTypography.bodyMedium, color = CinemaGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(id = R.string.admin_control_center),
+                            style = CinemaTypography.bodyMedium,
+                            color = CinemaGold,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text("Open Dashboard >", style = CinemaTypography.bodySmall, color = CinemaGold)
+                    Text(
+                        text = stringResource(id = R.string.open_dashboard),
+                        style = CinemaTypography.bodySmall,
+                        color = CinemaGold
+                    )
                 }
             }
 
@@ -236,9 +317,18 @@ fun ProfileContent(
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text("Verify Payments (Admin)", style = CinemaTypography.bodyMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(id = R.string.verify_payments_admin),
+                            style = CinemaTypography.bodyMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text("Manage >", style = CinemaTypography.bodySmall, color = CinemaGold)
+                    Text(
+                        text = stringResource(id = R.string.manage_action),
+                        style = CinemaTypography.bodySmall,
+                        color = CinemaGold
+                    )
                 }
             }
 
@@ -267,30 +357,40 @@ fun ProfileContent(
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text("Verify Ticket QR (Admin)", style = CinemaTypography.bodyMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(id = R.string.verify_ticket_qr_admin),
+                            style = CinemaTypography.bodyMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text("Scan >", style = CinemaTypography.bodySmall, color = CinemaGold)
+                    Text(
+                        text = stringResource(id = R.string.scan_action),
+                        style = CinemaTypography.bodySmall,
+                        color = CinemaGold
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
+        // ─── Contact Info Card ─────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = BackgroundCard)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                ProfileItem(icon = Icons.Default.Email, label = "Email", value = user.email)
+                ProfileItem(icon = Icons.Default.Email, label = stringResource(id = R.string.email), value = user.email)
                 Divider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
                 ProfileItem(
                     icon = Icons.Default.Phone,
-                    label = "Phone",
-                    value = user.phone ?: "Not provided"
+                    label = stringResource(id = R.string.phone),
+                    value = user.phone ?: stringResource(id = R.string.not_provided)
                 )
                 Divider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
-                ProfileItem(icon = Icons.Default.Badge, label = "User ID", value = "#${user.id}")
+                ProfileItem(icon = Icons.Default.Badge, label = stringResource(id = R.string.user_id_label), value = "#${user.id}")
             }
         }
 
@@ -309,7 +409,7 @@ fun ProfileContent(
         ) {
             Icon(imageVector = Icons.Default.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Logout", style = CinemaTypography.labelLarge)
+            Text(stringResource(id = R.string.logout), style = CinemaTypography.labelLarge)
         }
     }
 }

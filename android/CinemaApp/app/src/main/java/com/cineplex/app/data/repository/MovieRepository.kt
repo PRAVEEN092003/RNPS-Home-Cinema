@@ -13,8 +13,35 @@ class MovieRepository @Inject constructor(
     private val api: CinemaApiService,
     private val network: NetworkMonitor,
 ) {
-    suspend fun getMovies(): UiState<List<MovieDto>> =
-        safeApiCall(network) { api.getMovies() }
+    @Volatile
+    private var cachedMovies: List<MovieDto>? = null
+    @Volatile
+    private var lastMoviesFetchTimeMs: Long = 0L
+    private val CACHE_TTL_MS = 60_000L // 60 seconds
+
+    fun getCachedMovies(): List<MovieDto>? = cachedMovies
+
+    suspend fun getMovies(forceRefresh: Boolean = false): UiState<List<MovieDto>> {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && cachedMovies != null && (now - lastMoviesFetchTimeMs < CACHE_TTL_MS)) {
+            return UiState.Success(cachedMovies!!)
+        }
+
+        val result = safeApiCall(network) { api.getMovies() }
+        if (result is UiState.Success) {
+            cachedMovies = result.data
+            lastMoviesFetchTimeMs = now
+        } else if (cachedMovies != null) {
+            // Preserve cached data if network times out or fails
+            return UiState.Success(cachedMovies!!)
+        }
+        return result
+    }
+
+    fun invalidateMovieCache() {
+        cachedMovies = null
+        lastMoviesFetchTimeMs = 0L
+    }
 
     suspend fun getMovie(id: Int): UiState<MovieDto> =
         safeApiCall(network) { api.getMovie(id) }
@@ -76,14 +103,23 @@ class MovieRepository @Inject constructor(
         safeApiCall(network) { api.updatePaymentConfig(request) }
 
     // Admin CRUD Operations
-    suspend fun createMovie(request: MovieCreateRequest): UiState<MovieDto> =
-        safeApiCall(network) { api.createMovie(request) }
+    suspend fun createMovie(request: MovieCreateRequest): UiState<MovieDto> {
+        val result = safeApiCall(network) { api.createMovie(request) }
+        if (result is UiState.Success) invalidateMovieCache()
+        return result
+    }
 
-    suspend fun updateMovie(id: Int, request: MovieUpdateRequest): UiState<MovieDto> =
-        safeApiCall(network) { api.updateMovie(id, request) }
+    suspend fun updateMovie(id: Int, request: MovieUpdateRequest): UiState<MovieDto> {
+        val result = safeApiCall(network) { api.updateMovie(id, request) }
+        if (result is UiState.Success) invalidateMovieCache()
+        return result
+    }
 
-    suspend fun deleteMovie(id: Int): UiState<MovieDto> =
-        safeApiCall(network) { api.deleteMovie(id) }
+    suspend fun deleteMovie(id: Int): UiState<MovieDto> {
+        val result = safeApiCall(network) { api.deleteMovie(id) }
+        if (result is UiState.Success) invalidateMovieCache()
+        return result
+    }
 
     suspend fun createShow(request: ShowCreateRequest): UiState<ShowDto> =
         safeApiCall(network) { api.createShow(request) }

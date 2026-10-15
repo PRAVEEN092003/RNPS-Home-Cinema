@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -15,16 +14,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.ui.components.ErrorStateView
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
+import com.cineplex.app.util.DateTimeUtils
 import com.cineplex.app.util.UiState
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,12 +40,12 @@ fun BookingDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ticket Details", style = CinemaTypography.headlineSmall) },
+                title = { Text(stringResource(id = R.string.ticket_details_title), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back),
                             tint = TextPrimary
                         )
                     }
@@ -61,14 +64,14 @@ fun BookingDetailScreen(
                 .padding(padding)
         ) {
             when (val state = bookingState) {
-                is UiState.Loading -> LoadingStateView(message = "Loading ticket details...")
+                is UiState.Loading -> LoadingStateView(message = stringResource(id = R.string.loading_ticket_details))
                 is UiState.Offline -> OfflineStateView(onRetry = { viewModel.loadBookingDetail() })
                 is UiState.Error -> ErrorStateView(
                     message = state.message,
                     onRetry = { viewModel.loadBookingDetail() }
                 )
                 is UiState.Empty -> ErrorStateView(
-                    message = "Ticket details not found.",
+                    message = stringResource(id = R.string.ticket_details_not_found),
                     onRetry = { viewModel.loadBookingDetail() }
                 )
                 is UiState.Success -> {
@@ -106,27 +109,40 @@ fun TicketDetailCard(booking: BookingDto) {
                 ) {
                     Column {
                         Text(
-                            text = "RNPS HOME CINEMA",
+                            text = stringResource(id = R.string.app_name).uppercase(),
                             style = CinemaTypography.titleMedium.copy(
                                 color = CinemaGold,
                                 fontWeight = FontWeight.Bold
                             )
                         )
                         Text(
-                            text = "E-Ticket",
+                            text = stringResource(id = R.string.official_e_ticket),
                             style = CinemaTypography.bodySmall,
                             color = TextSecondary
                         )
                     }
 
+                    val isConfirmed = booking.status == "CONFIRMED" || booking.status == "BOOKED"
+                    val isCancelled = booking.status == "CANCELLED" || booking.payment?.status == "FAILED"
+                    val badgeColor = when {
+                        isConfirmed -> SuccessGreen
+                        isCancelled -> ErrorRed
+                        else -> WarningAmber
+                    }
+                    val badgeText = when {
+                        isConfirmed -> stringResource(id = R.string.status_confirmed_issued)
+                        isCancelled -> stringResource(id = R.string.status_cancelled_rejected)
+                        else -> stringResource(id = R.string.status_pending_admin)
+                    }
+
                     Surface(
-                        color = if (booking.status == "CONFIRMED") SuccessGreen.copy(alpha = 0.2f) else BackgroundElevated,
+                        color = badgeColor.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = booking.status,
+                            text = badgeText,
                             style = CinemaTypography.labelSmall.copy(
-                                color = if (booking.status == "CONFIRMED") SuccessGreen else TextSecondary,
+                                color = badgeColor,
                                 fontWeight = FontWeight.Bold
                             ),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
@@ -138,7 +154,7 @@ fun TicketDetailCard(booking: BookingDto) {
 
                 // Movie Title
                 Text(
-                    text = booking.show?.movie?.title ?: "RNPS Cinema Movie",
+                    text = booking.show?.movie?.title ?: stringResource(id = R.string.app_name),
                     style = CinemaTypography.displayMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -158,12 +174,12 @@ fun TicketDetailCard(booking: BookingDto) {
                 // Details Grid
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        TicketMetaLabel("SCREEN")
+                        TicketMetaLabel(stringResource(id = R.string.screen_label))
                         TicketMetaValue(booking.show?.screen?.name ?: "Main Hall")
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        TicketMetaLabel("QUANTITY")
-                        TicketMetaValue("${booking.totalSeats} Ticket(s)")
+                        TicketMetaLabel(stringResource(id = R.string.label_seats))
+                        TicketMetaValue("${booking.totalSeats}")
                     }
                 }
 
@@ -171,12 +187,12 @@ fun TicketDetailCard(booking: BookingDto) {
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        TicketMetaLabel("SHOWTIME")
-                        val timeStr = booking.show?.startTime?.replace("T", " ")?.take(16) ?: "Scheduled Time"
-                        TicketMetaValue(timeStr)
+                        TicketMetaLabel(stringResource(id = R.string.date_time_label, "").replace(":", "").trim())
+                        val timeStr = DateTimeUtils.formatShowDateTime(booking.show?.startTime)
+                        TicketMetaValue(if (timeStr.isNotBlank()) timeStr else "Unspecified")
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        TicketMetaLabel("SEATS")
+                        TicketMetaLabel(stringResource(id = R.string.label_seats))
                         val seatCodes = booking.seats.joinToString(", ") { it.seatCode }
                         TicketMetaValue(if (seatCodes.isNotBlank()) seatCodes else "Unspecified")
                     }
@@ -195,7 +211,7 @@ fun TicketDetailCard(booking: BookingDto) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        TicketMetaLabel("REF CODE")
+                        TicketMetaLabel(stringResource(id = R.string.label_booking_ref))
                         Text(
                             text = booking.bookingReference,
                             style = CinemaTypography.headlineSmall,
@@ -205,9 +221,9 @@ fun TicketDetailCard(booking: BookingDto) {
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        TicketMetaLabel("TOTAL AMOUNT")
+                        TicketMetaLabel(stringResource(id = R.string.total_amount_label))
                         Text(
-                            text = "$${String.format("%.2f", booking.totalAmount)}",
+                            text = "₹${String.format(Locale.ENGLISH, "%.2f", booking.totalAmount)}",
                             style = CinemaTypography.headlineMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold

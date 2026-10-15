@@ -1,21 +1,199 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App & General -->
     <string name="app_name">RNPS Home Cinema</string>
     <string name="tagline">Exclusive Theatre Experience</string>
     <string name="loading">Loading…</string>
+    <string name="please_wait">Please wait…</string>
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_no_internet">No Internet Connection</string>
     <string name="error_no_internet_desc">Please check your connection and try again.</string>
     <string name="retry">Retry</string>
+    <string name="back">Back</string>
+    <string name="decrease">Decrease quantity</string>
+    <string name="increase">Increase quantity</string>
+    <string name="no_items_found">No items found</string>
+
+    <!-- Language Selection -->
+    <string name="language_label">Language</string>
+    <string name="lang_english">English</string>
+    <string name="lang_tamil">தமிழ்</string>
+    <string name="select_language">Select Language</string>
+    <string name="language_setting_title">Language / மொழி</string>
+    <string name="language_setting_subtitle">Choose app language / செயலி மொழி</string>
+
+    <!-- Auth -->
     <string name="login">Login</string>
+    <string name="sign_in">Sign In</string>
     <string name="register">Register</string>
     <string name="logout">Logout</string>
+    <string name="welcome_back">Welcome Back</string>
+    <string name="sign_in_subtitle">Sign in to your cinema account</string>
+    <string name="create_account">Create Account</string>
+    <string name="create_account_subtitle">Join RNPS Home Cinema to book your favourite seats</string>
     <string name="email">Email</string>
+    <string name="email_address">Email Address</string>
     <string name="password">Password</string>
-    <string name="name">Full Name</string>
+    <string name="full_name">Full Name</string>
     <string name="phone">Phone Number</string>
+    <string name="phone_optional">Phone Number (Optional)</string>
+    <string name="dont_have_account">Don\'t have an account? </string>
+    <string name="already_have_account">Already have an account? </string>
+    <string name="toggle_password_visibility">Toggle password visibility</string>
+    <string name="error_network_check">No internet connection. Please check network.</string>
+    <string name="error_enter_email">Please enter your email address.</string>
+    <string name="error_enter_password">Please enter your password.</string>
+    <string name="error_enter_name">Please enter your full name.</string>
+
+    <!-- Home -->
     <string name="home">Home</string>
     <string name="profile">Profile</string>
+    <string name="welcome_user">Welcome, %1$s</string>
     <string name="now_showing">Now Showing</string>
+    <string name="currently_running_movies">Currently Running Movies</string>
+    <string name="upcoming_movies">Upcoming Movies</string>
+    <string name="no_currently_running">No currently running movies.</string>
+    <string name="no_upcoming_scheduled">No upcoming movies scheduled.</string>
+    <string name="no_movies_scheduled">No movies currently scheduled.</string>
+    <string name="admin_badge">ADMIN</string>
+
+    <!-- Movie Details -->
+    <string name="movie_details">Movie Details</string>
+    <string name="loading_movie_details">Loading movie details…</string>
+    <string name="movie_details_unavailable">Movie details unavailable.</string>
+    <string name="synopsis">Synopsis</string>
+    <string name="director_prefix">Director: %1$s</string>
+    <string name="cast_prefix">Cast: %1$s</string>
+    <string name="duration_minutes_suffix">%1$d minutes</string>
+    <string name="duration_genre_format">%1$d mins • %2$s</string>
+    <string name="select_show_time">Select Show Time</string>
+    <string name="failed_load_showtimes">Failed to load showtimes.</string>
+    <string name="no_internet_showtimes">No internet connection to fetch showtimes.</string>
+    <string name="no_shows_scheduled">No shows currently scheduled for this movie.</string>
+    <string name="book_tickets">BOOK TICKETS</string>
     <string name="book_ticket">Book Ticket</string>
+    <string name="ticket_price_format">Ticket Price: ₹%1$s</string>
+    <string name="dolby_atmos">DOLBY ATMOS</string>
+    <string name="cinema_experience">CINEMA EXPERIENCE</string>
+    <string name="atmos_desc">Breathtaking multi-dimensional sound immersion</string>
+    <string name="surround_audio_desc">High-fidelity surround audio format</string>
+    <string name="audio">AUDIO</string>
+
+    <!-- Date Group Labels -->
+    <string name="date_today">TODAY</string>
+    <string name="date_tomorrow">TOMORROW</string>
+    <string name="date_yesterday">YESTERDAY</string>
+
+    <!-- Seats Selection -->
+    <string name="select_seats">Select Seats</string>
+    <string name="loading_seat_layout">Loading seat layout…</string>
+    <string name="seat_map_unavailable">Seat map unavailable.</string>
+    <string name="screen_this_way">SCREEN THIS WAY</string>
+    <string name="seat_available">Available</string>
+    <string name="seat_selected">Selected</string>
+    <string name="seat_booked">Booked</string>
+    <string name="seats_selected_count">%1$d Seats Selected</string>
+    <string name="confirm_booking">Confirm Booking</string>
+    <string name="dialog_snacks_title">Do you want snacks?</string>
+    <string name="dialog_snacks_desc">Would you like to add delicious snacks &amp; beverages to your movie ticket?</string>
+    <string name="dialog_snacks_yes">YES, ADD SNACKS</string>
+    <string name="dialog_snacks_no">NO, CONTINUE TO SUMMARY</string>
+
+    <!-- Snacks Screen -->
+    <string name="add_cinema_snacks">Add Cinema Snacks</string>
+    <string name="snacks_menu_subtitle">RNPS Home Cinema Snacks Menu</string>
+    <string name="loading_snacks_menu">Loading snacks menu…</string>
+    <string name="snacks_menu_unavailable">Snacks menu unavailable.</string>
+    <string name="no_snacks_category">No snacks in this category.</string>
+    <string name="category_all">ALL</string>
+    <string name="category_popcorn">Popcorn</string>
+    <string name="category_drinks">Drinks</string>
+    <string name="category_combos">Combos</string>
+    <string name="category_other">Other</string>
+    <string name="add_snack">ADD</string>
+    <string name="items_selected">%1$d items • ₹%2$s</string>
+    <string name="items_added_count">%1$d Item(s) Added</string>
+    <string name="no_snacks_selected">No Snacks Selected</string>
+    <string name="continue_with_amount">Continue (₹%1$s)</string>
+    <string name="skip_snacks_continue">Skip Snacks &amp; Continue</string>
+    <string name="continue_to_summary">Continue to Summary</string>
+
+    <!-- Final Ticket & Payment -->
+    <string name="final_ticket_summary">Final Ticket &amp; Summary</string>
+    <string name="loading_ticket_details">Loading ticket details…</string>
+    <string name="ticket_details_unavailable">Ticket details unavailable.</string>
+    <string name="official_e_ticket">Official E-Ticket</string>
+    <string name="payment_verification_pending">Payment Verification Pending</string>
+    <string name="booking_summary">Booking Summary</string>
+    <string name="status_confirmed_paid">CONFIRMED / PAID</string>
+    <string name="status_payment_pending">PAYMENT PENDING</string>
+    <string name="status_unpaid">UNPAID</string>
+    <string name="date_time_label">Date &amp; Time: %1$s</string>
+    <string name="runtime_format">Runtime: %1$d minutes</string>
+    <string name="label_seats">SEATS</string>
+    <string name="label_tickets_subtotal">TICKETS SUB-TOTAL</string>
+    <string name="label_snacks_beverages">SNACKS &amp; BEVERAGES</string>
+    <string name="no_snacks_added">No snacks added</string>
+    <string name="snacks_total_format">Snacks Total: ₹%1$s</string>
+    <string name="label_booking_ref">BOOKING REF</string>
+    <string name="ticket_code_label">Ticket Code: %1$s</string>
+    <string name="total_paid">TOTAL PAID</string>
+    <string name="payable_total">PAYABLE TOTAL</string>
+    <string name="scan_cinema_entrance">Scan at Cinema Entrance</string>
+    <string name="upi_payment_title">Google Pay / UPI Payment</string>
+    <string name="upi_payment_subtitle">Pay using GPay or any UPI App</string>
+    <string name="payee_label">Payee: %1$s</string>
+    <string name="upi_id_label">UPI ID: %1$s</string>
+    <string name="total_payable_label">Total Payable: ₹%1$s</string>
+    <string name="btn_pay_now_upi">PAY NOW WITH GPAY / UPI</string>
+    <string name="btn_i_have_paid">I HAVE PAID (SUBMIT PAYMENT)</string>
+    <string name="ticket_confirmed_title">Ticket Confirmed!</string>
+    <string name="payment_pending_title">Payment Status: PENDING</string>
+    <string name="ticket_confirmed_desc">Your payment has been verified and confirmed by Admin. Enjoy your movie at RNPS Home Cinema!</string>
+    <string name="payment_pending_desc">Your payment is currently PENDING Admin confirmation. Once Admin approves, your ticket becomes fully active!</string>
+    <string name="return_to_home">Return to Home</string>
+    <string name="edit_snacks">Edit Snacks</string>
+    <string name="ticket_qr_code">Ticket QR Code</string>
+    <string name="no_upi_app">No UPI app available on device</string>
+    <string name="pay_with_upi">Pay with UPI App</string>
+
+    <!-- My Bookings -->
+    <string name="my_bookings">My Bookings</string>
+    <string name="tab_all_bookings">All Bookings</string>
+    <string name="tab_pending">Pending</string>
+    <string name="tab_confirmed">Confirmed</string>
+    <string name="tab_cancelled">Cancelled/Rejected</string>
+    <string name="no_bookings_title">No bookings found</string>
+    <string name="no_bookings_desc">You haven\'t made any movie bookings yet.</string>
+    <string name="browse_movies">Browse Movies</string>
+    <string name="view_ticket_action">View Ticket &amp; QR ></string>
+    <string name="status_confirmed_issued">CONFIRMED / TICKET ISSUED</string>
+    <string name="status_cancelled_rejected">CANCELLED / REJECTED</string>
+    <string name="status_pending_admin">PENDING ADMIN CONFIRMATION</string>
+    <string name="total_amount_label">Total Amount</string>
+    <string name="seats_with_value">Seats: %1$s</string>
+    <string name="seats_count_format">%1$s • %2$d Seats</string>
+
+    <!-- Profile -->
+    <string name="my_profile">My Profile</string>
+    <string name="loading_profile">Loading profile…</string>
+    <string name="user_data_unavailable">User data not available</string>
+    <string name="view_all">View All ></string>
+    <string name="admin_control_center">Admin Control Center</string>
+    <string name="open_dashboard">Open Dashboard ></string>
+    <string name="verify_payments_admin">Verify Payments (Admin)</string>
+    <string name="manage_action">Manage ></string>
+    <string name="verify_ticket_qr_admin">Verify Ticket QR (Admin)</string>
+    <string name="scan_action">Scan ></string>
+    <string name="user_id_label">User ID</string>
+    <string name="not_provided">Not provided</string>
+
+    <!-- Booking Confirmation & Detail -->
+    <string name="booking_confirmed_header">Booking Confirmed!</string>
+    <string name="back_to_home">Back to Home</string>
+    <string name="movie_label">Movie</string>
+    <string name="screen_label">Screen</string>
+    <string name="ticket_details_title">Ticket Details</string>
+    <string name="ticket_details_not_found">Ticket details not found.</string>
+    <string name="rating_label">Rating</string>
 </resources>
