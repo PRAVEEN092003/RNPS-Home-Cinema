@@ -58,6 +58,9 @@ def get_show_seats(
     current_user=Depends(get_current_user),
 ):
     """Get complete layout and seat availability for a specific show."""
+    from app.routes.bookings import release_expired_holds
+    release_expired_holds(db, show_id=show_id)
+
     show = (
         db.query(Show)
         .options(joinedload(Show.movie), joinedload(Show.screen))

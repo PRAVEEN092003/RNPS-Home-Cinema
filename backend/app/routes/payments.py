@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from app.config.database import get_db
 from app.models.models import (
-    Booking, Payment, Ticket, User, Show, BookingSeat, BookingSnack,
-    PaymentStatus, PaymentMethod
+    Booking, Payment, Ticket, User, Show, BookingSeat, BookingSnack, ShowSeat,
+    PaymentStatus, PaymentMethod, ShowSeatStatus, BookingStatus
 )
 from app.schemas.schemas import (
     SubmitPaymentRequest, BookingResponse, BookingSeatResponse,
@@ -44,7 +44,8 @@ def submit_payment(
 ):
     """
     Process payment submission for a booking.
-    Saves Payment record with status SUBMITTED / PENDING in SQLite database.
+    Saves Payment record with status SUBMITTED / PENDING in database.
+    Marks held seats permanently as BOOKED.
     Generates official Ticket record and locks booking from further edits.
     Does NOT auto-approve/auto-mark as PAID.
     """
@@ -68,13 +69,28 @@ def submit_payment(
             detail="Booking not found",
         )
 
+    if booking.status == BookingStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Booking has been cancelled or has expired.",
+        )
+
     # Prevent duplicate submission if already PAID or SUBMITTED
-    existing_payment = db.query(Payment).filter(Payment.booking_id == booking.id).first()
+    existing_payment = booking.payment or db.query(Payment).filter(Payment.booking_id == booking.id).first()
     if existing_payment and existing_payment.status in [PaymentStatus.PAID, PaymentStatus.SUBMITTED]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Payment has already been submitted for this booking.",
         )
+
+    # Mark held seats permanently as BOOKED upon successful payment submission
+    seat_ids = [bs.seat_id for bs in booking.booking_seats]
+    if seat_ids:
+        db.query(ShowSeat).filter(
+            ShowSeat.show_id == booking.show_id,
+            ShowSeat.seat_id.in_(seat_ids),
+        ).update({ShowSeat.status: ShowSeatStatus.BOOKED}, synchronize_session=False)
+
 
     # 1. Create / update Payment record
     if not existing_payment:
@@ -116,8 +132,15 @@ def submit_payment(
     else:
         ticket = existing_ticket
 
-    db.commit()
-    db.refresh(booking)
+    try:
+        db.commit()
+        db.refresh(booking)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to submit payment and confirm booking.",
+        )
 
     # Prepare response models
     ticket_subtotal = sum(bs.price for bs in booking.booking_seats)

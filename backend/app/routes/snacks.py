@@ -60,8 +60,15 @@ def add_snacks_to_booking(
     snacks_total = 0.0
     booking_snack_responses = []
 
+    # Batch query snacks to avoid N+1 queries
+    snack_ids = [item.snack_id for item in request.items]
+    snacks_map = {}
+    if snack_ids:
+        available_snacks = db.query(Snack).filter(Snack.id.in_(snack_ids), Snack.is_available == True).all()
+        snacks_map = {s.id: s for s in available_snacks}
+
     for item in request.items:
-        snack = db.query(Snack).filter(Snack.id == item.snack_id, Snack.is_available == True).first()
+        snack = snacks_map.get(item.snack_id)
         if not snack:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

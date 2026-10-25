@@ -19,16 +19,46 @@ from app.services.seeder import run_seeds
 settings = get_settings()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application startup: create tables, run migrations, and run seeds."""
+def init_db():
+    """Initializes tables, migrations, and seed data when needed."""
+    from app.models.models import SystemSetting
+    
+    # Quick check if database is already at current schema version
+    db = SessionLocal()
+    is_ready = False
+    try:
+        ver = db.query(SystemSetting.value).filter(SystemSetting.key == "schema_version").first()
+        is_ready = (ver is not None and ver[0] == "2")
+    except Exception:
+        is_ready = False
+    finally:
+        db.close()
+
+    if is_ready:
+        print("[APP] Database schema is up to date (v2). Fast startup path active.")
+        return
+
+    print("[APP] Applying schema migrations and initial seeds...")
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     db = SessionLocal()
     try:
         run_seeds(db)
+        ver_setting = db.query(SystemSetting).filter(SystemSetting.key == "schema_version").first()
+        if not ver_setting:
+            db.add(SystemSetting(key="schema_version", value="2"))
+        else:
+            ver_setting.value = "2"
+        db.commit()
     finally:
         db.close()
+    print("[APP] Database initialization completed.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application startup: ensure database is initialized without redundant delay."""
+    init_db()
     print(f"[APP] {settings.app_name} v{settings.app_version} started")
     yield
     print("[APP] Application shutting down")

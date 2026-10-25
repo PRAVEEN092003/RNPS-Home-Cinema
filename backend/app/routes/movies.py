@@ -22,7 +22,7 @@ def list_movies(
     query = db.query(Movie).filter(Movie.is_active == True)
     if is_upcoming is not None:
         query = query.filter(Movie.is_upcoming == is_upcoming)
-    movies = query.all()
+    movies = query.order_by(Movie.id.asc()).all()
     return [MovieResponse.model_validate(m) for m in movies]
 
 

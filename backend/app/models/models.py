@@ -50,6 +50,7 @@ class SeatType(str, enum.Enum):
 
 class ShowSeatStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
+    HELD = "HELD"
     BOOKED = "BOOKED"
     BLOCKED = "BLOCKED"
 
@@ -95,8 +96,8 @@ class Movie(Base):
     release_date = Column(DateTime, nullable=True)
     audio_technology = Column(String(50), nullable=False, default="Dolby Atmos")
     display_technology = Column(String(50), nullable=False, default="4K")
-    is_upcoming = Column(Boolean, default=False, nullable=False)
-    is_active = Column(Boolean, default=True)
+    is_upcoming = Column(Boolean, default=False, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -156,12 +157,12 @@ class Show(Base):
     __tablename__ = "shows"
 
     id = Column(Integer, primary_key=True, index=True)
-    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    screen_id = Column(Integer, ForeignKey("screens.id"), nullable=False)
-    start_time = Column(DateTime, nullable=False)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False, index=True)
+    screen_id = Column(Integer, ForeignKey("screens.id"), nullable=False, index=True)
+    start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
     base_price = Column(Float, nullable=False)        # Override pricing per show
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -179,9 +180,9 @@ class ShowSeat(Base):
     __tablename__ = "show_seats"
 
     id = Column(Integer, primary_key=True, index=True)
-    show_id = Column(Integer, ForeignKey("shows.id"), nullable=False)
-    seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False)
-    status = Column(Enum(ShowSeatStatus), default=ShowSeatStatus.AVAILABLE, nullable=False)
+    show_id = Column(Integer, ForeignKey("shows.id"), nullable=False, index=True)
+    seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False, index=True)
+    status = Column(Enum(ShowSeatStatus), default=ShowSeatStatus.AVAILABLE, nullable=False, index=True)
     price = Column(Float, nullable=False)             # Final price for this seat
 
     __table_args__ = (
@@ -200,10 +201,10 @@ class Booking(Base):
     __tablename__ = "bookings"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    show_id = Column(Integer, ForeignKey("shows.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    show_id = Column(Integer, ForeignKey("shows.id"), nullable=False, index=True)
     booking_reference = Column(String(20), unique=True, nullable=False, index=True)
-    status = Column(Enum(BookingStatus), default=BookingStatus.PENDING, nullable=False)
+    status = Column(Enum(BookingStatus), default=BookingStatus.PENDING, nullable=False, index=True)
     total_amount = Column(Float, nullable=False)
     convenience_fee = Column(Float, default=0.0)
     total_seats = Column(Integer, nullable=False)
@@ -226,8 +227,8 @@ class BookingSeat(Base):
     __tablename__ = "booking_seats"
 
     id = Column(Integer, primary_key=True, index=True)
-    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False)
-    seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False, index=True)
+    seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False, index=True)
     price = Column(Float, nullable=False)
 
     # Relationships
@@ -242,10 +243,10 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, index=True)
-    booking_id = Column(Integer, ForeignKey("bookings.id"), unique=True, nullable=False)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), unique=True, nullable=False, index=True)
     amount = Column(Float, nullable=False)
     method = Column(Enum(PaymentMethod), nullable=True)
-    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
+    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False, index=True)
     transaction_id = Column(String(100), nullable=True)
     paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -304,8 +305,8 @@ class BookingSnack(Base):
     __tablename__ = "booking_snacks"
 
     id = Column(Integer, primary_key=True, index=True)
-    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False)
-    snack_id = Column(Integer, ForeignKey("snacks.id"), nullable=False)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False, index=True)
+    snack_id = Column(Integer, ForeignKey("snacks.id"), nullable=False, index=True)
     quantity = Column(Integer, nullable=False, default=1)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)

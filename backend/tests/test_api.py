@@ -11,8 +11,13 @@ from app.config.database import get_db, Base
 from app.services.seeder import run_seeds
 
 # ─── Test Database Setup ──────────────────────────────────────────────────────
+import os
+from pathlib import Path
 
-TEST_DATABASE_URL = "sqlite:///./database/test_cinema.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_DIR = BASE_DIR / "database"
+DB_DIR.mkdir(parents=True, exist_ok=True)
+TEST_DATABASE_URL = f"sqlite:///{DB_DIR / 'test_cinema.db'}"
 
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -60,6 +65,80 @@ def test_health():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
+
+
+# ─── Auth Endpoint Tests ──────────────────────────────────────────────────────
+
+def test_auth_successful_registration():
+    res = client.post("/api/auth/register", json={
+        "name": "New User",
+        "email": "newuser@example.com",
+        "phone": "+91-9999888877",
+        "password": "securepassword123"
+    })
+    assert res.status_code == 201
+    data = res.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    assert data["user"]["email"] == "newuser@example.com"
+    assert data["user"]["name"] == "New User"
+    assert data["user"]["role"] == "USER"
+
+
+def test_auth_duplicate_registration_fails():
+    res = client.post("/api/auth/register", json={
+        "name": "Duplicate User",
+        "email": "newuser@example.com",
+        "password": "securepassword123"
+    })
+    assert res.status_code == 409
+    assert "already exists" in res.json()["detail"].lower()
+
+
+def test_auth_registration_validation_error():
+    res = client.post("/api/auth/register", json={
+        "name": "X",
+        "email": "not-an-email",
+        "password": "123"
+    })
+    assert res.status_code == 422
+
+
+def test_auth_successful_login():
+    res = client.post("/api/auth/login", json={
+        "email": "newuser@example.com",
+        "password": "securepassword123"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert "access_token" in data
+    assert data["user"]["email"] == "newuser@example.com"
+
+
+def test_auth_login_invalid_password():
+    res = client.post("/api/auth/login", json={
+        "email": "newuser@example.com",
+        "password": "wrongpassword"
+    })
+    assert res.status_code == 401
+    assert "incorrect email or password" in res.json()["detail"].lower()
+
+
+def test_auth_login_nonexistent_email():
+    res = client.post("/api/auth/login", json={
+        "email": "doesnotexist@example.com",
+        "password": "somepassword"
+    })
+    assert res.status_code == 401
+    assert "incorrect email or password" in res.json()["detail"].lower()
+
+
+def test_auth_get_me():
+    token = get_auth_token()
+    res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 200
+    assert res.json()["email"] == "admin@rnps.com"
+    assert res.json()["role"] == "ADMIN"
 
 
 # ─── Payment Flow Tests ───────────────────────────────────────────────────────
@@ -269,17 +348,20 @@ def test_admin_payment_approval_and_seat_release():
     assert b_res.status_code == 201
     b_id = b_res.json()["id"]
 
-    # Seat should now be BOOKED
+    # Seat should now be HELD (temporary hold, not yet permanently BOOKED)
     seats_after = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()
     s_state = [s for s in seats_after["seats"] if s["seat_id"] == target_seat["seat_id"]][0]
-    assert s_state["status"] == "BOOKED"
+    assert s_state["status"] == "HELD"
 
-    # Submit payment
+    # Submit payment -> marks seat permanently as BOOKED
     pay_res = client.post(
         "/api/payments/submit",
         headers=headers,
         json={"booking_id": b_id, "payment_method": "UPI", "transaction_reference": "TXN-TEST-REJECT"}
     )
+    seats_after_pay = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()
+    s_paid = [s for s in seats_after_pay["seats"] if s["seat_id"] == target_seat["seat_id"]][0]
+    assert s_paid["status"] == "BOOKED"
     payment_id = pay_res.json()["payment"]["id"]
 
     # Admin rejects payment -> seat should be released back to AVAILABLE
@@ -533,4 +615,158 @@ def test_movie_status_now_showing_and_upcoming_separation_and_update():
     refreshed_showing_list = client.get("/api/movies/?is_upcoming=false", headers=headers).json()
     refreshed_ids = [m["id"] for m in refreshed_showing_list]
     assert upcoming_id in refreshed_ids
+
+
+# ─── Seat Hold & Concurrent Booking Tests ─────────────────────────────────────
+
+def test_seat_hold_and_cancel_releases_seats():
+    """Verify that creating a booking places a hold, and cancelling releases seats back to AVAILABLE."""
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Create a dedicated show
+    movies = client.get("/api/movies/", headers=headers).json()
+    screens = client.get("/api/admin/screens/", headers=headers).json()
+    show_res = client.post(
+        "/api/admin/shows/",
+        headers=headers,
+        json={
+            "movie_id": movies[0]["id"],
+            "screen_id": screens[0]["id"],
+            "start_time": "2026-10-19T10:00:00",
+            "end_time": "2026-10-19T12:30:00",
+            "base_price": 25.0
+        }
+    )
+    assert show_res.status_code == 201
+    show_id = show_res.json()["id"]
+
+    # 2. Pick an available seat
+    seats_data = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()
+    seat = [s for s in seats_data["seats"] if s["status"] == "AVAILABLE"][0]
+    seat_id = seat["seat_id"]
+
+    # 3. Book the seat -> becomes HELD
+    b_res = client.post(
+        "/api/bookings/",
+        headers=headers,
+        json={"show_id": show_id, "seat_ids": [seat_id]}
+    )
+    assert b_res.status_code == 201
+    booking_id = b_res.json()["id"]
+
+    seats_after_book = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()
+    s_held = [s for s in seats_after_book["seats"] if s["seat_id"] == seat_id][0]
+    assert s_held["status"] == "HELD"
+
+    # 4. User cancels / abandons the booking flow before submitting payment
+    cancel_res = client.post(f"/api/bookings/{booking_id}/cancel", headers=headers)
+    assert cancel_res.status_code == 200
+
+    # 5. Verify the seat is back to AVAILABLE
+    seats_after_cancel = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()
+    s_avail = [s for s in seats_after_cancel["seats"] if s["seat_id"] == seat_id][0]
+    assert s_avail["status"] == "AVAILABLE"
+
+
+def test_concurrent_booking_conflict():
+    """Verify that two users trying to book the same seat results in a 409 Conflict for the second user."""
+    admin_token = get_auth_token()
+    headers_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    # Register user 2
+    reg_res = client.post("/api/auth/register", json={
+        "name": "User Two",
+        "email": "user2@concurrent.com",
+        "password": "password123"
+    })
+    token_user2 = reg_res.json()["access_token"] if reg_res.status_code == 201 else client.post("/api/auth/login", json={
+        "email": "user2@concurrent.com",
+        "password": "password123"
+    }).json()["access_token"]
+    headers_user2 = {"Authorization": f"Bearer {token_user2}"}
+
+    # Create show
+    movies = client.get("/api/movies/", headers=headers_admin).json()
+    screens = client.get("/api/admin/screens/", headers=headers_admin).json()
+    show_res = client.post(
+        "/api/admin/shows/",
+        headers=headers_admin,
+        json={
+            "movie_id": movies[0]["id"],
+            "screen_id": screens[0]["id"],
+            "start_time": "2026-10-20T10:00:00",
+            "end_time": "2026-10-20T12:30:00",
+            "base_price": 25.0
+        }
+    )
+    show_id = show_res.json()["id"]
+
+    # Pick seat
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=headers_admin).json()["seats"]
+    target_seat_id = [s for s in seats if s["status"] == "AVAILABLE"][0]["seat_id"]
+
+    # User 1 books the seat
+    b1 = client.post(
+        "/api/bookings/",
+        headers=headers_admin,
+        json={"show_id": show_id, "seat_ids": [target_seat_id]}
+    )
+    assert b1.status_code == 201
+
+    # User 2 attempts to book the same seat -> 409 CONFLICT
+    b2 = client.post(
+        "/api/bookings/",
+        headers=headers_user2,
+        json={"show_id": show_id, "seat_ids": [target_seat_id]}
+    )
+    assert b2.status_code == 409
+    assert "no longer available" in b2.json()["detail"].lower()
+
+
+def test_cannot_cancel_booking_after_payment_submitted():
+    """Verify that once payment is submitted, pressing cancel refuses with 400 Bad Request."""
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create show
+    movies = client.get("/api/movies/", headers=headers).json()
+    screens = client.get("/api/admin/screens/", headers=headers).json()
+    show_res = client.post(
+        "/api/admin/shows/",
+        headers=headers,
+        json={
+            "movie_id": movies[0]["id"],
+            "screen_id": screens[0]["id"],
+            "start_time": "2026-10-21T10:00:00",
+            "end_time": "2026-10-21T12:30:00",
+            "base_price": 30.0
+        }
+    )
+    show_id = show_res.json()["id"]
+
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=headers).json()["seats"]
+    seat_id = [s for s in seats if s["status"] == "AVAILABLE"][0]["seat_id"]
+
+    # Book seat
+    b = client.post(
+        "/api/bookings/",
+        headers=headers,
+        json={"show_id": show_id, "seat_ids": [seat_id]}
+    )
+    assert b.status_code == 201
+    booking_id = b.json()["id"]
+
+    # Submit payment
+    pay = client.post(
+        "/api/payments/submit",
+        headers=headers,
+        json={"booking_id": booking_id, "payment_method": "UPI", "transaction_reference": "TXN-PAID-IMMUTABLE"}
+    )
+    assert pay.status_code == 200
+
+    # Attempt cancel -> MUST FAIL with 400
+    cancel_res = client.post(f"/api/bookings/{booking_id}/cancel", headers=headers)
+    assert cancel_res.status_code == 400
+    assert "cannot cancel booking" in cancel_res.json()["detail"].lower()
 
