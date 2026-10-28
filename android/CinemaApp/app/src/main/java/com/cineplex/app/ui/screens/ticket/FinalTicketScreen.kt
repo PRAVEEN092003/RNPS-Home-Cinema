@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,12 +53,43 @@ fun FinalTicketScreen(
     val paymentState by viewModel.paymentState.collectAsState()
     val paymentConfig by viewModel.paymentConfig.collectAsState()
 
+    val isPaymentSubmitted = (bookingState as? UiState.Success)?.data?.let { b ->
+        b.payment != null && (b.payment.status == "SUBMITTED" || b.payment.status == "PAID" || b.payment.status == "COMPLETED")
+    } ?: false
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadBooking(showLoading = false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    androidx.activity.compose.BackHandler {
+        if (isPaymentSubmitted) {
+            onNavigateToHome()
+        } else {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(id = R.string.final_ticket_summary), style = CinemaTypography.headlineSmall) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (isPaymentSubmitted) {
+                            onNavigateToHome()
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
@@ -94,10 +126,12 @@ fun FinalTicketScreen(
                         booking = state.data,
                         paymentConfig = paymentConfig,
                         onEditSnacks = { onEditSnacks(state.data.id) },
-                        onSubmitPayment = { viewModel.submitPayment() },
+                        onSubmitPayment = { ref -> viewModel.submitPayment(ref) },
                         isSubmittingPayment = paymentState is UiState.Loading,
                         paymentError = (paymentState as? UiState.Error)?.message,
-                        onDone = onNavigateToHome
+                        onDone = {
+                            viewModel.cancelBookingAndFinish(onNavigateToHome)
+                        }
                     )
                 }
             }
@@ -110,12 +144,73 @@ fun FinalTicketContent(
     booking: BookingDto,
     paymentConfig: com.cineplex.app.data.model.PaymentConfigDto?,
     onEditSnacks: () -> Unit,
-    onSubmitPayment: () -> Unit,
+    onSubmitPayment: (String?) -> Unit,
     isSubmittingPayment: Boolean,
     paymentError: String?,
     onDone: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var showConfirmDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var txnRefInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = {
+                Text(
+                    text = stringResource(id = R.string.confirm_payment_title),
+                    style = CinemaTypography.headlineSmall,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(id = R.string.confirm_payment_desc),
+                        style = CinemaTypography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = txnRefInput,
+                        onValueChange = { txnRefInput = it },
+                        placeholder = { Text(booking.bookingReference, color = TextSecondary.copy(alpha = 0.5f)) },
+                        label = { Text(stringResource(id = R.string.txn_ref_placeholder)) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = CinemaGold,
+                            unfocusedBorderColor = BorderSubtle,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val ref = txnRefInput.trim().ifEmpty { booking.bookingReference }
+                        showConfirmDialog = false
+                        onSubmitPayment(ref)
+                    }
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.submit_payment),
+                        color = CinemaGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text(text = stringResource(id = R.string.cancel), color = TextSecondary)
+                }
+            },
+            containerColor = BackgroundCard,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
     val isPaymentSubmitted = booking.payment != null &&
             (booking.payment.status == "SUBMITTED" || booking.payment.status == "PAID" || booking.payment.status == "COMPLETED")
     val isPaid = booking.payment?.status == "PAID" || booking.payment?.status == "COMPLETED"
@@ -124,299 +219,17 @@ fun FinalTicketContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ─── Premium Cinema Ticket Card ───────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+        // ─── Luxurious Cinema Ticket Card ─────────────────────────────────────
+        com.cineplex.app.ui.components.CinemaTicketCard(
+            booking = booking,
+            onEditSnacks = onEditSnacks,
+            showQrCode = true
+        )
 
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = stringResource(id = R.string.app_name).uppercase(),
-                            style = CinemaTypography.titleMedium.copy(
-                                color = CinemaGold,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp
-                            )
-                        )
-                        Text(
-                            text = if (isPaid) {
-                                stringResource(id = R.string.official_e_ticket)
-                            } else if (isPaymentSubmitted) {
-                                stringResource(id = R.string.payment_verification_pending)
-                            } else {
-                                stringResource(id = R.string.booking_summary)
-                            },
-                            style = CinemaTypography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-
-                    val badgeColor = when {
-                        isPaid -> SuccessGreen
-                        isPaymentSubmitted -> WarningAmber
-                        else -> CinemaGold
-                    }
-                    val badgeText = when {
-                        isPaid -> stringResource(id = R.string.status_confirmed_paid)
-                        isPaymentSubmitted -> stringResource(id = R.string.status_payment_pending)
-                        else -> stringResource(id = R.string.status_unpaid)
-                    }
-
-                    Surface(
-                        color = badgeColor.copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = badgeText,
-                            style = CinemaTypography.labelSmall.copy(
-                                color = badgeColor,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Movie Poster & Details Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    com.cineplex.app.ui.components.CinemaImage(
-                        imageUrl = booking.show?.movie?.posterUrl,
-                        contentDescription = booking.show?.movie?.title,
-                        fallbackIcon = Icons.Default.Movie,
-                        modifier = Modifier
-                            .size(width = 85.dp, height = 125.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = booking.show?.movie?.title ?: stringResource(id = R.string.app_name),
-                            style = CinemaTypography.headlineSmall,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        val timeStr = DateTimeUtils.formatShowDateTime(booking.show?.startTime)
-                        Text(
-                            text = if (timeStr.isNotBlank()) stringResource(id = R.string.date_time_label, timeStr) else "",
-                            style = CinemaTypography.bodySmall,
-                            color = CinemaGold
-                        )
-
-                        booking.show?.movie?.durationMinutes?.let { dur ->
-                            Text(
-                                text = stringResource(id = R.string.runtime_format, dur),
-                                style = CinemaTypography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        val screen = booking.show?.screen
-                        if (screen != null) {
-                            Text(
-                                text = "${screen.name} • ${screen.displaySpec}",
-                                style = CinemaTypography.labelSmall.copy(color = TextPrimary)
-                            )
-                            if (screen.hasDolbyAtmos) {
-                                Surface(
-                                    color = CinemaGold.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(6.dp),
-                                    modifier = Modifier.padding(top = 4.dp)
-                                ) {
-                                    Text(
-                                        text = stringResource(id = R.string.dolby_atmos),
-                                        style = CinemaTypography.labelSmall.copy(
-                                            color = CinemaGold,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = 1.sp
-                                        ),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                DashedDivider()
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Seats & Ticket Subtotal
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        TicketLabel(stringResource(id = R.string.label_seats))
-                        val seatCodes = booking.seats.joinToString(", ") { it.seatCode }
-                        TicketValue(if (seatCodes.isNotBlank()) seatCodes else "N/A")
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        TicketLabel(stringResource(id = R.string.label_tickets_subtotal))
-                        val subtotal = if (booking.ticketAmount > 0.0) booking.ticketAmount else booking.seats.sumOf { it.price }
-                        TicketValue("₹${String.format(java.util.Locale.ENGLISH, "%.2f", subtotal)}")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Snacks Section
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TicketLabel(stringResource(id = R.string.label_snacks_beverages))
-                    if (!isPaymentSubmitted) {
-                        IconButton(onClick = onEditSnacks, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = stringResource(id = R.string.edit_snacks), tint = CinemaGold)
-                        }
-                    }
-                }
-
-                if (booking.snacks.isEmpty()) {
-                    Text(stringResource(id = R.string.no_snacks_added), style = CinemaTypography.bodySmall, color = TextDisabled)
-                } else {
-                    booking.snacks.forEach { snack ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "${snack.quantity}x ${snack.snackName}",
-                                style = CinemaTypography.bodySmall,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", snack.totalPrice)}",
-                                style = CinemaTypography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.snacks_total_format, String.format(java.util.Locale.ENGLISH, "%.2f", booking.snacksAmount)),
-                            style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                DashedDivider()
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Booking Reference / Ticket Code & Payable Total
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        TicketLabel(stringResource(id = R.string.label_booking_ref))
-                        Text(
-                            text = booking.bookingReference,
-                            style = CinemaTypography.headlineSmall,
-                            color = CinemaGold,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        booking.ticket?.ticketCode?.let {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(id = R.string.ticket_code_label, it),
-                                style = CinemaTypography.labelSmall.copy(color = TextSecondary)
-                            )
-                        }
-                    }
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        TicketLabel(if (isPaid) stringResource(id = R.string.total_paid) else stringResource(id = R.string.payable_total))
-                        Text(
-                            text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)}",
-                            style = CinemaTypography.headlineLarge,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // QR Code Frame for confirmed / active tickets
-                if (isPaid || booking.ticket != null) {
-                    Spacer(modifier = Modifier.height(20.dp))
-                    DashedDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(140.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White)
-                                .border(2.dp, CinemaGold, RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = stringResource(id = R.string.ticket_qr_code),
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(80.dp)
-                                )
-                                Text(
-                                    text = booking.ticket?.ticketCode ?: booking.bookingReference,
-                                    style = CinemaTypography.labelSmall.copy(color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(id = R.string.scan_cinema_entrance),
-                            style = CinemaTypography.labelSmall.copy(color = TextSecondary)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // ─── Payment Section ──────────────────────────────────────────────────
         if (!isPaymentSubmitted) {
@@ -427,7 +240,9 @@ fun FinalTicketContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-                border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(CinemaGold.copy(alpha = 0.4f)))
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle)
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -455,11 +270,12 @@ fun FinalTicketContent(
 
                     Surface(
                         color = BackgroundElevated,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             Text(
                                 text = stringResource(id = R.string.payee_label, payeeName),
@@ -467,11 +283,11 @@ fun FinalTicketContent(
                             )
                             Text(
                                 text = stringResource(id = R.string.upi_id_label, upiId),
-                                style = CinemaTypography.labelSmall.copy(color = CinemaGold)
+                                style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
                             )
                             Text(
                                 text = stringResource(id = R.string.total_payable_label, String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)),
-                                style = CinemaTypography.titleMedium.copy(color = CinemaGold, fontWeight = FontWeight.Bold),
+                                style = CinemaTypography.titleMedium.copy(color = CinemaGold, fontWeight = FontWeight.Black),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -479,7 +295,7 @@ fun FinalTicketContent(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 1. Launch GPay / UPI Intent
+                    // 1. Launch UPI Intent (Cinema Gold Action Button)
                     CinemaButton(
                         text = stringResource(id = R.string.btn_pay_now_upi),
                         onClick = {
@@ -497,10 +313,10 @@ fun FinalTicketContent(
 
                     // 2. I PAID Button (sets payment status to PENDING)
                     OutlinedButton(
-                        onClick = onSubmitPayment,
+                        onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = CinemaGold),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
                         border = androidx.compose.foundation.BorderStroke(1.5.dp, CinemaGold)
                     ) {
                         if (isSubmittingPayment) {
@@ -569,7 +385,7 @@ fun FinalTicketContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         CinemaButton(
             text = stringResource(id = R.string.return_to_home),
@@ -578,22 +394,6 @@ fun FinalTicketContent(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
-}
-
-@Composable
-fun TicketLabel(text: String) {
-    Text(
-        text = text,
-        style = CinemaTypography.labelSmall.copy(color = TextSecondary, letterSpacing = 1.sp)
-    )
-}
-
-@Composable
-fun TicketValue(text: String) {
-    Text(
-        text = text,
-        style = CinemaTypography.titleMedium.copy(color = TextPrimary, fontWeight = FontWeight.Bold)
-    )
 }
 
 @Composable

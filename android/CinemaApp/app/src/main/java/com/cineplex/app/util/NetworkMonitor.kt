@@ -7,14 +7,18 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+interface NetworkChecker {
+    fun isOnline(): Boolean
+}
+
 /**
  * Utility to check real-time network connectivity.
  */
 @Singleton
 class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
-    fun isOnline(): Boolean {
+) : NetworkChecker {
+    override fun isOnline(): Boolean {
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val network = cm.activeNetwork ?: return false

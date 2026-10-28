@@ -1,6 +1,7 @@
 package com.cineplex.app.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,14 +64,25 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = stringResource(id = R.string.app_name).uppercase(),
-                            style = CinemaTypography.titleMedium.copy(
-                                color = CinemaGold,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "RNPS",
+                                style = CinemaTypography.titleMedium.copy(
+                                    color = CinemaGold,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 2.sp
+                                )
                             )
-                        )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "HOME CINEMA",
+                                style = CinemaTypography.titleMedium.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.5.sp
+                                )
+                            )
+                        }
                         Text(
                             text = if (user != null) stringResource(id = R.string.welcome_user, user?.name ?: "") else stringResource(id = R.string.now_showing),
                             style = CinemaTypography.bodySmall,
@@ -80,13 +93,14 @@ fun HomeScreen(
                 actions = {
                     if (user?.role == "ADMIN") {
                         Surface(
-                            color = CinemaGold.copy(alpha = 0.15f),
+                            color = CinemaGold.copy(alpha = 0.16f),
                             shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f)),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
                                 text = stringResource(id = R.string.admin_badge),
-                                style = CinemaTypography.labelSmall.copy(color = CinemaGold),
+                                style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -135,13 +149,24 @@ fun HomeScreen(
                             // ─── Currently Running Movies (Top Row) ───────────
                             item {
                                 Column {
-                                    Text(
-                                        text = stringResource(id = R.string.currently_running_movies),
-                                        style = CinemaTypography.headlineMedium,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(bottom = 12.dp)
-                                    )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 4.dp, height = 18.dp)
+                                                .clip(RoundedCornerShape(2.dp))
+                                                .background(CinemaGold)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.currently_running_movies),
+                                            style = CinemaTypography.headlineMedium,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
 
                                     if (currentlyRunning.isEmpty()) {
                                         Text(
@@ -166,13 +191,24 @@ fun HomeScreen(
 
                             // ─── Upcoming Movies (Below) ──────────────────────
                             item {
-                                Text(
-                                    text = stringResource(id = R.string.upcoming_movies),
-                                    style = CinemaTypography.headlineMedium,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
-                                )
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 4.dp, height = 18.dp)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(CinemaGoldDark)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.upcoming_movies),
+                                        style = CinemaTypography.headlineMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             if (upcoming.isEmpty()) {
@@ -210,6 +246,7 @@ fun MovieCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderGold),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
@@ -226,6 +263,7 @@ fun MovieCard(
                 modifier = Modifier
                     .size(width = 90.dp, height = 130.dp)
                     .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -297,24 +335,26 @@ fun MovieCard(
                         }
 
                         Surface(
-                            color = CinemaGold.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp)
+                            color = CinemaGold.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
                         ) {
                             Text(
                                 text = movie.displayTechnology,
-                                style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold),
+                                style = CinemaTypography.labelSmall.copy(color = CinemaGoldLight, fontWeight = FontWeight.Bold),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
 
                         Surface(
-                            color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold.copy(alpha = 0.25f) else BackgroundElevated,
-                            shape = RoundedCornerShape(4.dp)
+                            color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold.copy(alpha = 0.2f) else BackgroundElevated,
+                            shape = RoundedCornerShape(4.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold.copy(alpha = 0.4f) else BorderSubtle)
                         ) {
                             Text(
                                 text = movie.audioTechnology,
                                 style = CinemaTypography.labelSmall.copy(
-                                    color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold else TextSecondary,
+                                    color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGoldLight else TextSecondary,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -350,27 +390,44 @@ fun CurrentlyRunningMovieCard(
 ) {
     Card(
         modifier = Modifier
-            .width(160.dp)
+            .width(165.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(CinemaGold.copy(alpha = 0.4f))
-        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderGold),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            CinemaImage(
-                imageUrl = movie.posterUrl,
-                contentDescription = movie.title,
-                fallbackIcon = Icons.Default.Movie,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
+            Box(modifier = Modifier.fillMaxWidth().height(205.dp)) {
+                CinemaImage(
+                    imageUrl = movie.posterUrl,
+                    contentDescription = movie.title,
+                    fallbackIcon = Icons.Default.Movie,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                // Now Showing badge in top right
+                Surface(
+                    color = CinemaGold,
+                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 12.dp),
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Text(
+                        text = "NOW",
+                        style = CinemaTypography.labelSmall.copy(
+                            color = Color(0xFF080808),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 9.sp,
+                            letterSpacing = 1.sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = movie.title,
@@ -380,7 +437,7 @@ fun CurrentlyRunningMovieCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = stringResource(id = R.string.duration_genre_format, movie.durationMinutes, movie.genre ?: "Cinema"),

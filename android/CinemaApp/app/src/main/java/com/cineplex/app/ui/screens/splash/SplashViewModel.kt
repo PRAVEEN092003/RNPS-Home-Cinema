@@ -25,13 +25,14 @@ class SplashViewModel @Inject constructor(
     val destination: StateFlow<SplashDestination> = _destination.asStateFlow()
 
     init {
+        authRepository.warmUpServer()
         checkSession()
     }
 
     private fun checkSession() {
         viewModelScope.launch {
             val loggedIn = authRepository.isLoggedIn()
-            kotlinx.coroutines.delay(350) // Quick smooth brand impression without stalling startup
+            kotlinx.coroutines.delay(150) // Quick smooth brand pulse without stalling startup
             if (loggedIn) {
                 _destination.value = SplashDestination.Home
             } else {

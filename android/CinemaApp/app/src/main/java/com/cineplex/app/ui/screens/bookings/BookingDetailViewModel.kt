@@ -31,18 +31,23 @@ class BookingDetailViewModel @Inject constructor(
     fun loadBookingDetail() {
         viewModelScope.launch {
             _bookingState.value = UiState.Loading
-            val allRes = movieRepository.getMyBookings()
-            if (allRes is UiState.Success) {
-                val match = allRes.data.find { it.id == bookingId }
-                if (match != null) {
-                    _bookingState.value = UiState.Success(match)
-                } else {
-                    _bookingState.value = UiState.Error("Booking not found")
+            val res = movieRepository.getBooking(bookingId)
+            if (res is UiState.Success) {
+                _bookingState.value = res
+            } else {
+                val allRes = movieRepository.getMyBookings()
+                if (allRes is UiState.Success) {
+                    val match = allRes.data.find { it.id == bookingId }
+                    if (match != null) {
+                        _bookingState.value = UiState.Success(match)
+                    } else {
+                        _bookingState.value = UiState.Error("Booking not found")
+                    }
+                } else if (allRes is UiState.Error) {
+                    _bookingState.value = UiState.Error(allRes.message)
+                } else if (allRes is UiState.Offline) {
+                    _bookingState.value = UiState.Offline
                 }
-            } else if (allRes is UiState.Error) {
-                _bookingState.value = UiState.Error(allRes.message)
-            } else if (allRes is UiState.Offline) {
-                _bookingState.value = UiState.Offline
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,7 +52,7 @@ fun AdminMoviesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Movie Management", style = CinemaTypography.headlineSmall) },
+                title = { Text("Movie Management", style = CinemaTypography.headlineSmall, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -73,7 +75,7 @@ fun AdminMoviesScreen(
                     showDialog = true
                 },
                 containerColor = CinemaGold,
-                contentColor = BackgroundDeep
+                contentColor = TextOnGold
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add Movie")
             }
@@ -139,7 +141,8 @@ fun MovieAdminCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+        colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, BorderSubtle)
     ) {
         Row(
             modifier = Modifier
@@ -170,13 +173,13 @@ fun MovieAdminCard(
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     Surface(
-                        color = if (movie.isUpcoming) CinemaGold.copy(alpha = 0.15f) else SuccessGreen.copy(alpha = 0.2f),
+                        color = if (movie.isUpcoming) ElectricCinemaBlue.copy(alpha = 0.2f) else SuccessGreen.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             text = if (movie.isUpcoming) "UPCOMING" else "NOW SHOWING",
                             style = CinemaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (movie.isUpcoming) CinemaGold else SuccessGreen,
+                            color = if (movie.isUpcoming) ElectricBlueLight else SuccessGreen,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -185,7 +188,7 @@ fun MovieAdminCard(
                 Text(
                     text = "${movie.language} • ${movie.durationMinutes} mins • ${movie.rating ?: "U/A"}",
                     style = CinemaTypography.bodySmall,
-                    color = CinemaGold
+                    color = TextSecondary
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -193,25 +196,25 @@ fun MovieAdminCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
-                        color = CinemaGold.copy(alpha = 0.15f),
+                        color = ElectricCinemaBlue.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = movie.displayTechnology,
                             style = CinemaTypography.labelSmall,
-                            color = CinemaGold,
+                            color = Color.White,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                     Surface(
-                        color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold.copy(alpha = 0.25f) else BackgroundElevated,
+                        color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) ElectricCinemaBlue.copy(alpha = 0.3f) else BackgroundElevated,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = movie.audioTechnology,
                             style = CinemaTypography.labelSmall,
-                            color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) CinemaGold else TextPrimary,
+                            color = if (movie.audioTechnology.equals("Dolby Atmos", ignoreCase = true)) Color.White else TextPrimary,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -229,7 +232,7 @@ fun MovieAdminCard(
 
             Row {
                 IconButton(onClick = onEdit) {
-                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = CinemaGold)
+                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = ElectricCinemaBlue)
                 }
                 IconButton(onClick = onDelete) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = ErrorRed)
@@ -292,7 +295,7 @@ fun MovieFormDialog(
                         label = { Text("NOW SHOWING", fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep,
+                            selectedLabelColor = TextOnGold,
                             containerColor = BackgroundElevated,
                             labelColor = TextSecondary
                         ),
@@ -304,7 +307,7 @@ fun MovieFormDialog(
                         label = { Text("UPCOMING", fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep,
+                            selectedLabelColor = TextOnGold,
                             containerColor = BackgroundElevated,
                             labelColor = TextSecondary
                         ),
@@ -317,14 +320,24 @@ fun MovieFormDialog(
                     onValueChange = { title = it },
                     label = { Text("Title") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Description") },
                     maxLines = 3,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -333,7 +346,12 @@ fun MovieFormDialog(
                         label = { Text("Duration (mins)") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
                     )
                     OutlinedTextField(
                         value = language,
@@ -341,7 +359,12 @@ fun MovieFormDialog(
                         label = { Text("Language") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -351,7 +374,12 @@ fun MovieFormDialog(
                         label = { Text("Genre") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
                     )
                     OutlinedTextField(
                         value = rating,
@@ -359,7 +387,12 @@ fun MovieFormDialog(
                         label = { Text("Rating (e.g. U/A)") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
                     )
                 }
 
@@ -378,8 +411,10 @@ fun MovieFormDialog(
                             .menuAnchor()
                             .fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = CinemaGold,
-                            focusedLabelColor = CinemaGold
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
                         )
                     )
                     ExposedDropdownMenu(
@@ -392,7 +427,7 @@ fun MovieFormDialog(
                                 text = {
                                     Text(
                                         text = option,
-                                        color = if (option == audioTechnology) CinemaGold else TextPrimary,
+                                        color = if (option == audioTechnology) ElectricCinemaBlue else TextPrimary,
                                         fontWeight = if (option == audioTechnology) FontWeight.Bold else FontWeight.Normal
                                     )
                                 },
@@ -420,8 +455,10 @@ fun MovieFormDialog(
                             .menuAnchor()
                             .fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = CinemaGold,
-                            focusedLabelColor = CinemaGold
+                            focusedBorderColor = ElectricCinemaBlue,
+                            focusedLabelColor = ElectricBlueLight,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
                         )
                     )
                     ExposedDropdownMenu(
@@ -434,7 +471,7 @@ fun MovieFormDialog(
                                 text = {
                                     Text(
                                         text = option,
-                                        color = if (option == displayTechnology) CinemaGold else TextPrimary,
+                                        color = if (option == displayTechnology) ElectricCinemaBlue else TextPrimary,
                                         fontWeight = if (option == displayTechnology) FontWeight.Bold else FontWeight.Normal
                                     )
                                 },
@@ -452,7 +489,12 @@ fun MovieFormDialog(
                     onValueChange = { posterUrl = it },
                     label = { Text("Poster Image URL") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
             }
         },
@@ -464,9 +506,9 @@ fun MovieFormDialog(
                         onSubmit(title, description, durationInt, language, genre, rating, posterUrl, audioTechnology, displayTechnology, isUpcoming)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = BackgroundDeep)
+                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = TextOnGold)
             ) {
-                Text(if (movie == null) "Create" else "Save")
+                Text(if (movie == null) "Create" else "Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

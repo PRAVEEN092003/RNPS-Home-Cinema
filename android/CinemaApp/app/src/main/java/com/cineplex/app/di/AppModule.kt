@@ -26,6 +26,7 @@ object AppModule {
         return RetrofitFactory.create(
             baseUrl = BuildConfig.API_BASE_URL,
             tokenProvider = { sessionManager.getTokenSync() },
+            cacheDir = context.cacheDir,
         )
     }
 }

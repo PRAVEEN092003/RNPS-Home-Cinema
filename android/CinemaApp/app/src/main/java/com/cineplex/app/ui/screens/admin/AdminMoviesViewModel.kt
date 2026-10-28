@@ -29,10 +29,15 @@ class AdminMoviesViewModel @Inject constructor(
         loadMovies()
     }
 
-    fun loadMovies() {
+    fun loadMovies(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            _moviesState.value = UiState.Loading
-            _moviesState.value = repository.getMovies()
+            if (forceRefresh) {
+                repository.invalidateMovieCache()
+            }
+            if (_moviesState.value !is UiState.Success) {
+                _moviesState.value = UiState.Loading
+            }
+            _moviesState.value = repository.getMovies(forceRefresh = forceRefresh)
         }
     }
 
@@ -64,7 +69,7 @@ class AdminMoviesViewModel @Inject constructor(
             when (val result = repository.createMovie(request)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Movie '${result.data.title}' created successfully!"
-                    loadMovies()
+                    loadMovies(forceRefresh = true)
                 }
                 is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
                 else -> {}
@@ -101,7 +106,7 @@ class AdminMoviesViewModel @Inject constructor(
             when (val result = repository.updateMovie(movieId, request)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Movie updated successfully!"
-                    loadMovies()
+                    loadMovies(forceRefresh = true)
                 }
                 is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
                 else -> {}
@@ -110,13 +115,22 @@ class AdminMoviesViewModel @Inject constructor(
     }
 
     fun deleteMovie(movieId: Int) {
+        val previousState = _moviesState.value
+        val currentList = (previousState as? UiState.Success)?.data ?: emptyList()
+        // Optimistic UI update: remove movie immediately from list
+        _moviesState.value = UiState.Success(currentList.filter { it.id != movieId })
+
         viewModelScope.launch {
             when (val result = repository.deleteMovie(movieId)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Movie deactivated!"
-                    loadMovies()
+                    loadMovies(forceRefresh = true)
                 }
-                is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
+                is UiState.Error -> {
+                    // Rollback on failure
+                    _moviesState.value = previousState
+                    _actionMessage.value = "Failed: ${result.message}"
+                }
                 else -> {}
             }
         }

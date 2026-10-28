@@ -44,7 +44,9 @@ class HomeViewModel @Inject constructor(
                 _moviesState.value = UiState.Loading
             }
             val result = movieRepository.getMovies(forceRefresh = forceRefresh)
-            _moviesState.value = result
+            if (result is UiState.Success || _moviesState.value !is UiState.Success) {
+                _moviesState.value = result
+            }
         }
     }
 }

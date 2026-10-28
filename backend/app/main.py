@@ -28,14 +28,14 @@ def init_db():
     is_ready = False
     try:
         ver = db.query(SystemSetting.value).filter(SystemSetting.key == "schema_version").first()
-        is_ready = (ver is not None and ver[0] == "2")
+        is_ready = (ver is not None and ver[0] == "3")
     except Exception:
         is_ready = False
     finally:
         db.close()
 
     if is_ready:
-        print("[APP] Database schema is up to date (v2). Fast startup path active.")
+        print("[APP] Database schema is up to date (v3). Fast startup path active.")
         return
 
     print("[APP] Applying schema migrations and initial seeds...")
@@ -46,9 +46,9 @@ def init_db():
         run_seeds(db)
         ver_setting = db.query(SystemSetting).filter(SystemSetting.key == "schema_version").first()
         if not ver_setting:
-            db.add(SystemSetting(key="schema_version", value="2"))
+            db.add(SystemSetting(key="schema_version", value="3"))
         else:
-            ver_setting.value = "2"
+            ver_setting.value = "3"
         db.commit()
     finally:
         db.close()

@@ -1,8 +1,8 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -14,18 +14,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.cineplex.app.data.model.PaymentConfigDto
 import com.cineplex.app.data.model.ScreenDto
-import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.components.ErrorStateView
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
 import com.cineplex.app.util.UiState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +36,21 @@ fun AdminScreensScreen(
     onNavigateBack: () -> Unit,
     viewModel: AdminScreensViewModel = hiltViewModel(),
 ) {
+    BackHandler { onNavigateBack() }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadData()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val screensState by viewModel.screensState.collectAsState()
     val configState by viewModel.configState.collectAsState()
     val actionState by viewModel.actionState.collectAsState()
@@ -51,7 +69,7 @@ fun AdminScreensScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Screens & UPI Config", style = CinemaTypography.headlineSmall) },
+                title = { Text("Screen & Payment Config", style = CinemaTypography.headlineSmall, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -80,7 +98,7 @@ fun AdminScreensScreen(
             Text(
                 text = "Screen Specifications & Seats",
                 style = CinemaTypography.headlineMedium,
-                color = CinemaGold,
+                color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
 
@@ -104,7 +122,7 @@ fun AdminScreensScreen(
             Text(
                 text = "UPI Payment Configuration",
                 style = CinemaTypography.headlineMedium,
-                color = CinemaGold,
+                color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
 
@@ -142,12 +160,15 @@ fun AdminScreensScreen(
     }
 
     if (isEditingConfig && configState is UiState.Success) {
-        val cfg = (configState as UiState.Success<PaymentConfigDto>).data
+        val currentConfig = (configState as UiState.Success<PaymentConfigDto>).data
         EditUpiConfigDialog(
-            config = cfg,
+            config = currentConfig,
             onDismiss = { isEditingConfig = false },
             onSave = { upiId, payeeName ->
-                viewModel.updatePaymentConfig(upiId, payeeName)
+                viewModel.updatePaymentConfig(
+                    upiId = upiId,
+                    payeeName = payeeName
+                )
             },
             isSaving = actionState is UiState.Loading
         )
@@ -163,6 +184,7 @@ fun AdminScreenCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, BorderSubtle),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -172,7 +194,7 @@ fun AdminScreenCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, contentDescription = null, tint = CinemaGold, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = ElectricCinemaBlue, modifier = Modifier.size(28.dp))
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(screen.name, style = CinemaTypography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
@@ -181,7 +203,7 @@ fun AdminScreenCard(
                 }
 
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Screen", tint = CinemaGold)
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Screen", tint = ElectricCinemaBlue)
                 }
             }
 
@@ -190,8 +212,10 @@ fun AdminScreenCard(
             Surface(color = BackgroundElevated, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("Display: ${screen.displaySpec}", style = CinemaTypography.bodySmall, color = TextPrimary)
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text("Audio: ${screen.audioSpec}", style = CinemaTypography.bodySmall, color = TextPrimary)
-                    Text("Dolby Atmos: ${if (screen.hasDolbyAtmos) "Enabled (Branding Active)" else "Disabled"}", style = CinemaTypography.bodySmall, color = CinemaGold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Dolby Atmos: ${if (screen.hasDolbyAtmos) "Enabled (Branding Active)" else "Disabled"}", style = CinemaTypography.bodySmall, color = if (screen.hasDolbyAtmos) SuccessGreen else TextDisabled)
                 }
             }
         }
@@ -207,6 +231,7 @@ fun AdminUpiConfigCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, BorderSubtle),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -217,10 +242,11 @@ fun AdminUpiConfigCard(
             ) {
                 Column {
                     Text("Payee Name: ${config.payeeName}", style = CinemaTypography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
-                    Text("UPI ID: ${config.upiId}", style = CinemaTypography.bodyMedium, color = CinemaGold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("UPI ID: ${config.upiId}", style = CinemaTypography.bodyMedium, color = ElectricBlueLight)
                 }
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit UPI Config", tint = CinemaGold)
+                    Icon(Icons.Default.Edit, contentDescription = "Edit UPI Config", tint = ElectricCinemaBlue)
                 }
             }
         }
@@ -250,21 +276,36 @@ fun EditScreenDialog(
                     onValueChange = { name = it },
                     label = { Text("Screen Name") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 OutlinedTextField(
                     value = displaySpec,
                     onValueChange = { displaySpec = it },
                     label = { Text("Display Specification (e.g. 4K Ultra HD)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 OutlinedTextField(
                     value = audioSpec,
                     onValueChange = { audioSpec = it },
                     label = { Text("Audio Specification (e.g. 13-Channel Dolby Atmos)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Dolby Atmos Branding:", style = CinemaTypography.bodyMedium, color = TextPrimary)
@@ -272,7 +313,7 @@ fun EditScreenDialog(
                     Switch(
                         checked = hasDolbyAtmos,
                         onCheckedChange = { hasDolbyAtmos = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = CinemaGold)
+                        colors = SwitchDefaults.colors(checkedThumbColor = ElectricCinemaBlue)
                     )
                 }
                 OutlinedTextField(
@@ -280,7 +321,12 @@ fun EditScreenDialog(
                     onValueChange = { seatPriceStr = it },
                     label = { Text("Update Ticket Price (₹ INR, optional)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
             }
         },
@@ -294,13 +340,13 @@ fun EditScreenDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = TextOnGold)
             ) {
                 if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = TextOnGold)
-                else Text("Save")
+                else Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
         },
-        containerColor = BackgroundCard,
+        containerColor = BackgroundElevated,
         shape = RoundedCornerShape(20.dp)
     )
 }
@@ -325,14 +371,24 @@ fun EditUpiConfigDialog(
                     onValueChange = { payeeName = it },
                     label = { Text("Payee Name (e.g. RNPS Home Cinema)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CinemaGold,
+                        focusedLabelColor = CinemaGoldLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
                 OutlinedTextField(
                     value = upiId,
                     onValueChange = { upiId = it },
                     label = { Text("UPI ID (e.g. rnpscinema@upi)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CinemaGold,
+                        focusedLabelColor = CinemaGoldLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
             }
         },
@@ -343,13 +399,13 @@ fun EditUpiConfigDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = TextOnGold)
             ) {
                 if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = TextOnGold)
-                else Text("Save")
+                else Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) }
         },
-        containerColor = BackgroundCard,
+        containerColor = BackgroundElevated,
         shape = RoundedCornerShape(20.dp)
     )
 }

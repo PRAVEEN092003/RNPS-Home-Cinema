@@ -45,29 +45,36 @@ class FinalTicketViewModel @Inject constructor(
         }
     }
 
-    fun loadBooking() {
+    fun loadBooking(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _bookingState.value = UiState.Loading
-            val allRes = movieRepository.getMyBookings()
-            if (allRes is UiState.Success) {
-                val match = allRes.data.find { it.id == bookingId }
-                if (match != null) {
-                    _bookingState.value = UiState.Success(match)
-                } else {
-                    _bookingState.value = UiState.Error("Booking details not found")
+            if (showLoading && _bookingState.value !is UiState.Success) {
+                _bookingState.value = UiState.Loading
+            }
+            val res = movieRepository.getBooking(bookingId)
+            if (res is UiState.Success) {
+                _bookingState.value = res
+            } else if (_bookingState.value !is UiState.Success) {
+                val allRes = movieRepository.getMyBookings()
+                if (allRes is UiState.Success) {
+                    val match = allRes.data.find { it.id == bookingId }
+                    if (match != null) {
+                        _bookingState.value = UiState.Success(match)
+                    } else {
+                        _bookingState.value = UiState.Error("Booking details not found")
+                    }
+                } else if (allRes is UiState.Error) {
+                    _bookingState.value = UiState.Error(allRes.message)
+                } else if (allRes is UiState.Offline) {
+                    _bookingState.value = UiState.Offline
                 }
-            } else if (allRes is UiState.Error) {
-                _bookingState.value = UiState.Error(allRes.message)
-            } else if (allRes is UiState.Offline) {
-                _bookingState.value = UiState.Offline
             }
         }
     }
 
     fun submitPayment(transactionRef: String? = null) {
         if (_paymentState.value is UiState.Loading) return // Prevent duplicate payment submissions
+        _paymentState.value = UiState.Loading
         viewModelScope.launch {
-            _paymentState.value = UiState.Loading
             val res = movieRepository.submitPayment(bookingId, transactionRef)
             if (res is UiState.Success) {
                 _bookingState.value = UiState.Success(res.data)
@@ -79,4 +86,21 @@ class FinalTicketViewModel @Inject constructor(
     fun resetPaymentState() {
         _paymentState.value = null
     }
+
+    fun cancelBookingAndFinish(onFinish: () -> Unit) {
+        val isPaidOrSubmitted = (bookingState.value as? UiState.Success)?.data?.let { b ->
+            b.payment != null && (b.payment.status == "SUBMITTED" || b.payment.status == "PAID" || b.payment.status == "COMPLETED")
+        } ?: false
+        if (isPaidOrSubmitted) {
+            onFinish()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                movieRepository.cancelBooking(bookingId)
+            } catch (_: Exception) {}
+            onFinish()
+        }
+    }
 }
+

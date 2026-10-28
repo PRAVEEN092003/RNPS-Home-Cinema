@@ -116,13 +116,22 @@ class AdminShowsViewModel @Inject constructor(
     }
 
     fun deleteShow(showId: Int) {
+        val previousState = _showsState.value
+        val currentList = (previousState as? UiState.Success)?.data ?: emptyList()
+        // Optimistic UI update: remove show immediately from displayed list
+        _showsState.value = UiState.Success(currentList.filter { it.id != showId })
+
         viewModelScope.launch {
             when (val result = repository.deleteShow(showId)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Show deactivated!"
                     loadShows()
                 }
-                is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
+                is UiState.Error -> {
+                    // Rollback on failure
+                    _showsState.value = previousState
+                    _actionMessage.value = "Failed: ${result.message}"
+                }
                 else -> {}
             }
         }

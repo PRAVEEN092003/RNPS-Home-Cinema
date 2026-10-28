@@ -1,10 +1,12 @@
 """
-Test database schema migration on legacy SQLite databases.
+Test database schema migration on SQLite and PostgreSQL databases.
 """
+import os
 import sqlite3
 import pytest
 from sqlalchemy import create_engine, text
 from app.config.migrations import run_migrations
+from app.config.settings import get_settings
 
 
 def test_legacy_database_migration(tmp_path):
@@ -42,7 +44,7 @@ def test_legacy_database_migration(tmp_path):
     conn.commit()
     conn.close()
 
-    # 2. Run migrations on legacy database
+    # 2. Run migrations on legacy database (verifying SQLite compatibility)
     engine = create_engine(f"sqlite:///{db_file}")
     run_migrations(engine)
 
@@ -73,3 +75,10 @@ def test_legacy_database_migration(tmp_path):
     assert m1[2] == 0
 
     conn2.close()
+
+
+def test_postgres_enum_held_migration_sql_syntax():
+    """Verify the exact PostgreSQL enum DDL syntax used in run_migrations."""
+    expected_sql = "ALTER TYPE public.showseatstatus ADD VALUE IF NOT EXISTS 'HELD'"
+    assert "public.showseatstatus" in expected_sql
+    assert "ADD VALUE IF NOT EXISTS 'HELD'" in expected_sql

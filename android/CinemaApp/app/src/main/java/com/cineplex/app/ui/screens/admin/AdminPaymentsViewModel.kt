@@ -27,19 +27,49 @@ class AdminPaymentsViewModel @Inject constructor(
         loadPayments()
     }
 
-    fun loadPayments() {
+    fun loadPayments(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _paymentsState.value = UiState.Loading
+            if (showLoading && _paymentsState.value !is UiState.Success) {
+                _paymentsState.value = UiState.Loading
+            }
             _paymentsState.value = movieRepository.getAdminPayments()
         }
     }
 
     fun verifyPayment(paymentId: Int, approve: Boolean) {
+        val previousState = _paymentsState.value
+        val currentList = (previousState as? UiState.Success)?.data ?: emptyList()
+        val targetBooking = currentList.find { it.payment?.id == paymentId }
+
+        // Optimistic UI update: update booking and payment status immediately in list
+        if (targetBooking != null) {
+            val updatedPayment = targetBooking.payment?.copy(
+                status = if (approve) "PAID" else "FAILED"
+            )
+            val updatedBooking = targetBooking.copy(
+                status = if (approve) "CONFIRMED" else "CANCELLED",
+                payment = updatedPayment
+            )
+            val updatedList = currentList.map {
+                if (it.payment?.id == paymentId) updatedBooking else it
+            }
+            _paymentsState.value = UiState.Success(updatedList)
+        }
+
         viewModelScope.launch {
             _actionState.value = UiState.Loading
             val res = movieRepository.verifyPayment(paymentId, approve)
             _actionState.value = res
-            loadPayments() // refresh list
+            if (res is UiState.Error) {
+                // Rollback on failure
+                _paymentsState.value = previousState
+            } else {
+                loadPayments(showLoading = false) // refresh list silently with server-authoritative data
+            }
         }
+    }
+
+    fun resetActionState() {
+        _actionState.value = null
     }
 }

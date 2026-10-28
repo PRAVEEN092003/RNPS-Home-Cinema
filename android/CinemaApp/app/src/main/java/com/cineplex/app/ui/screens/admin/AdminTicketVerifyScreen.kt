@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +32,7 @@ fun AdminTicketVerifyScreen(
     onNavigateBack: () -> Unit,
     viewModel: AdminTicketVerifyViewModel = hiltViewModel(),
 ) {
+    BackHandler { onNavigateBack() }
     val codeInput by viewModel.codeInput.collectAsState()
     val verifyState by viewModel.verifyState.collectAsState()
 
@@ -153,7 +155,7 @@ fun TicketVerificationResultCard(result: TicketVerificationDto) {
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 14.dp), color = Divider)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = Divider)
 
             VerifyItem(label = "Customer Name", value = result.userName)
             VerifyItem(label = "Movie", value = result.movieTitle)

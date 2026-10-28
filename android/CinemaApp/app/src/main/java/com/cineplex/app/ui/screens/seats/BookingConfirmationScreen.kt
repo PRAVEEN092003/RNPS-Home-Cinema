@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.seats
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,7 +20,6 @@ import com.cineplex.app.ui.components.CinemaButton
 import com.cineplex.app.ui.theme.*
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookingConfirmationScreen(
     bookingReference: String,
@@ -37,11 +37,12 @@ fun BookingConfirmationScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Success Icon
                 Box(
@@ -83,7 +84,8 @@ fun BookingConfirmationScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+                    colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+                    border = BorderStroke(1.dp, CardBorderGold)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp)
@@ -92,14 +94,15 @@ fun BookingConfirmationScreen(
                             text = stringResource(id = R.string.label_booking_ref),
                             style = CinemaTypography.labelSmall.copy(color = TextSecondary)
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = bookingReference,
                             style = CinemaTypography.headlineLarge,
-                            color = CinemaGold,
+                            color = TextPrimary,
                             fontWeight = FontWeight.ExtraBold
                         )
 
-                        Divider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
 
                         DetailRow(label = stringResource(id = R.string.movie_label), value = movieTitle)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -107,7 +110,7 @@ fun BookingConfirmationScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         DetailRow(label = stringResource(id = R.string.label_seats), value = seatsSummary)
 
-                        Divider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Divider)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -122,7 +125,7 @@ fun BookingConfirmationScreen(
                             Text(
                                 text = "₹${String.format(Locale.ENGLISH, "%.2f", totalAmount)}",
                                 style = CinemaTypography.headlineMedium,
-                                color = TextPrimary,
+                                color = CinemaGold,
                                 fontWeight = FontWeight.Bold
                             )
                         }

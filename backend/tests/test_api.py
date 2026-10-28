@@ -770,3 +770,117 @@ def test_cannot_cancel_booking_after_payment_submitted():
     assert cancel_res.status_code == 400
     assert "cannot cancel booking" in cancel_res.json()["detail"].lower()
 
+
+# ─── Regression Tests for My Bookings Route and Filters ────────────────────────
+
+def test_get_my_bookings_returns_200_not_422_int_parsing_error():
+    """
+    Regression test for critical bug:
+    Ensures GET /api/bookings/my is routed to get_my_bookings instead of being
+    swallowed by GET /api/bookings/{booking_id} with 'my' parsed as an integer (HTTP 422).
+    """
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    res = client.get("/api/bookings/my", headers=headers)
+    assert res.status_code == 200, f"Expected 200 OK but got {res.status_code}: {res.text}"
+    data = res.json()
+    assert isinstance(data, list)
+
+
+def test_get_my_bookings_status_filters_and_user_isolation():
+    """
+    Verify All, PENDING, CONFIRMED, and CANCELLED status filter tabs on /api/bookings/my,
+    and verify authenticated user isolation.
+    """
+    # 1. Register a fresh user
+    user1_email = "mybookings_test1@example.com"
+    r1 = client.post("/api/auth/register", json={
+        "name": "Bookings Tester",
+        "email": user1_email,
+        "password": "password123"
+    })
+    token1 = r1.json()["access_token"]
+    h1 = {"Authorization": f"Bearer {token1}"}
+
+    # Verify initially empty
+    empty_res = client.get("/api/bookings/my", headers=h1)
+    assert empty_res.status_code == 200
+    assert empty_res.json() == []
+
+    # Admin creates a show
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+    movies = client.get("/api/movies/", headers=h_admin).json()
+    screens = client.get("/api/admin/screens/", headers=h_admin).json()
+    show_res = client.post(
+        "/api/admin/shows/",
+        headers=h_admin,
+        json={
+            "movie_id": movies[0]["id"],
+            "screen_id": screens[0]["id"],
+            "start_time": "2026-10-21T18:00:00",
+            "end_time": "2026-10-21T20:30:00",
+            "base_price": 40.0
+        }
+    )
+    show_id = show_res.json()["id"]
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=h_admin).json()["seats"]
+    avail = [s for s in seats if s["status"] == "AVAILABLE"]
+
+    # User 1 creates Booking 1 (stays PENDING)
+    b1 = client.post("/api/bookings/", headers=h1, json={"show_id": show_id, "seat_ids": [avail[0]["seat_id"]]}).json()
+
+    # User 1 creates Booking 2 and submits payment (CONFIRMED)
+    b2 = client.post("/api/bookings/", headers=h1, json={"show_id": show_id, "seat_ids": [avail[1]["seat_id"]]}).json()
+    pay_res = client.post("/api/payments/submit", headers=h1, json={
+        "booking_id": b2["id"],
+        "payment_method": "UPI",
+        "transaction_reference": "TXN-CONFIRMED-MY"
+    }).json()
+    payment_id = pay_res["payment"]["id"]
+    # Admin approves payment -> booking confirmed
+    approve_res = client.post(f"/api/admin/payments/{payment_id}/verify", headers=h_admin, json={"action": "APPROVE"})
+    assert approve_res.status_code == 200
+    assert approve_res.json()["status"] == "CONFIRMED"
+
+    # User 1 creates Booking 3 and cancels it (CANCELLED)
+    b3 = client.post("/api/bookings/", headers=h1, json={"show_id": show_id, "seat_ids": [avail[2]["seat_id"]]}).json()
+    client.post(f"/api/bookings/{b3['id']}/cancel", headers=h1)
+
+    # Test ALL
+    all_res = client.get("/api/bookings/my", headers=h1).json()
+    all_ids = {b["id"] for b in all_res}
+    assert b1["id"] in all_ids
+    assert b2["id"] in all_ids
+    assert b3["id"] in all_ids
+
+    # Test PENDING filter
+    pending_res = client.get("/api/bookings/my?status=PENDING", headers=h1).json()
+    assert any(b["id"] == b1["id"] for b in pending_res)
+    assert not any(b["id"] == b2["id"] for b in pending_res)
+    assert not any(b["id"] == b3["id"] for b in pending_res)
+
+    # Test CONFIRMED filter
+    confirmed_res = client.get("/api/bookings/my?status=CONFIRMED", headers=h1).json()
+    assert any(b["id"] == b2["id"] for b in confirmed_res)
+    assert not any(b["id"] == b1["id"] for b in confirmed_res)
+    assert not any(b["id"] == b3["id"] for b in confirmed_res)
+
+    # Test CANCELLED filter
+    cancelled_res = client.get("/api/bookings/my?status=CANCELLED", headers=h1).json()
+    assert any(b["id"] == b3["id"] for b in cancelled_res)
+    assert not any(b["id"] == b1["id"] for b in cancelled_res)
+    assert not any(b["id"] == b2["id"] for b in cancelled_res)
+
+    # User 2 cannot see User 1's bookings
+    r2 = client.post("/api/auth/register", json={
+        "name": "Another User",
+        "email": "another_user_iso@example.com",
+        "password": "password123"
+    })
+    token2 = r2.json()["access_token"]
+    h2 = {"Authorization": f"Bearer {token2}"}
+    user2_res = client.get("/api/bookings/my", headers=h2).json()
+    assert user2_res == []
+

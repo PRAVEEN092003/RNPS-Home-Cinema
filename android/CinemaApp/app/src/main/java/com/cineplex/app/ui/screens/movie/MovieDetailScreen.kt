@@ -42,6 +42,7 @@ import com.cineplex.app.ui.components.OfflineStateView
 import com.cineplex.app.ui.theme.*
 import com.cineplex.app.util.UiState
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -60,13 +61,14 @@ fun MovieDetailScreen(
     onSelectShow: (Int) -> Unit,
     viewModel: MovieDetailViewModel = hiltViewModel(),
 ) {
+    BackHandler { onNavigateBack() }
     val state by viewModel.uiState.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.loadMovieAndShows()
+                viewModel.loadMovieAndShows(showLoading = false)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -346,14 +348,26 @@ fun DateGroupHeader(
             .padding(top = 4.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val badgeBg = when {
+            isToday -> CinemaGold
+            isTomorrow -> CinemaGold.copy(alpha = 0.25f)
+            else -> BackgroundElevated
+        }
+        val badgeTextColor = when {
+            isToday -> TextOnGold
+            isTomorrow -> CinemaGoldLight
+            else -> TextSecondary
+        }
+
         Surface(
-            color = if (isToday) CinemaGold else if (isTomorrow) CinemaGold.copy(alpha = 0.2f) else BackgroundElevated,
-            shape = RoundedCornerShape(8.dp)
+            color = badgeBg,
+            shape = RoundedCornerShape(8.dp),
+            border = if (isTomorrow) androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f)) else null
         ) {
             Text(
                 text = headerText,
                 style = CinemaTypography.titleMedium.copy(
-                    color = if (isToday) BackgroundDeep else if (isTomorrow) CinemaGold else TextPrimary,
+                    color = badgeTextColor,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 ),
@@ -363,7 +377,7 @@ fun DateGroupHeader(
         Spacer(modifier = Modifier.width(12.dp))
         HorizontalDivider(
             modifier = Modifier.weight(1f),
-            color = if (isToday) CinemaGold.copy(alpha = 0.4f) else Divider
+            color = if (isToday) CinemaGold.copy(alpha = 0.5f) else Divider
         )
     }
 }
@@ -380,7 +394,9 @@ fun ShowTimeCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(CinemaGold.copy(alpha = 0.5f)))
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(BorderSubtle)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -393,7 +409,7 @@ fun ShowTimeCard(
                 Column {
                     Text(
                         text = screen?.name ?: "Screen 1",
-                        style = CinemaTypography.titleMedium.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
+                        style = CinemaTypography.titleMedium.copy(color = Color.White, fontWeight = FontWeight.Bold)
                     )
                     screen?.let { s ->
                         Text(
@@ -406,15 +422,17 @@ fun ShowTimeCard(
 
                 if (screen?.hasDolbyAtmos == true) {
                     Surface(
-                        color = CinemaGold.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = CinemaGold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
                     ) {
                         Text(
                             text = stringResource(id = R.string.dolby_atmos),
                             style = CinemaTypography.labelSmall.copy(
-                                color = CinemaGold,
+                                color = CinemaGoldLight,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
+                                letterSpacing = 1.sp,
+                                fontSize = 9.sp
                             ),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
@@ -422,7 +440,7 @@ fun ShowTimeCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -438,8 +456,10 @@ fun ShowTimeCard(
                     )
                     Text(
                         text = stringResource(id = R.string.ticket_price_format, String.format(Locale.ENGLISH, "%.2f", show.basePrice)),
-                        style = CinemaTypography.bodySmall,
-                        color = CinemaGold
+                        style = CinemaTypography.titleSmall.copy(
+                            color = CinemaGold,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 }
 
@@ -476,8 +496,8 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
             } else {
                 Brush.horizontalGradient(
                     listOf(
-                        BackgroundElevated,
-                        BackgroundCard
+                        BorderSubtle,
+                        BorderSubtle
                     )
                 )
             }
@@ -505,12 +525,12 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                 Surface(
                     color = CinemaGold.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, CinemaGold.copy(alpha = 0.3f))
+                    border = BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
                 ) {
                     Text(
                         text = movie.displayTechnology.uppercase(),
                         style = CinemaTypography.labelMedium.copy(
-                            color = CinemaGold,
+                            color = CinemaGoldLight,
                             fontWeight = FontWeight.Bold
                         ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -545,14 +565,14 @@ fun MovieTechnologyHighlight(movie: MovieDto) {
                     }
 
                     Surface(
-                        color = CinemaGold.copy(alpha = 0.2f),
+                        color = CinemaGold.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f))
+                        border = BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
                     ) {
                         Text(
                             text = "ATMOS",
                             style = CinemaTypography.labelSmall.copy(
-                                color = CinemaGold,
+                                color = CinemaGoldLight,
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp
                             ),

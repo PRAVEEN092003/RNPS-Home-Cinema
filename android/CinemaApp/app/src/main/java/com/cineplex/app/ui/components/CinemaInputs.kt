@@ -1,7 +1,6 @@
 package com.cineplex.app.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -11,8 +10,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.cineplex.app.ui.theme.*
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,10 +30,10 @@ fun CinemaTextField(
         onValueChange = onValueChange,
         label = { Text(label, style = CinemaTypography.bodyMedium) },
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         singleLine = true,
         leadingIcon = leadingIcon?.let {
-            { Icon(imageVector = it, contentDescription = null, tint = IconTint) }
+            { Icon(imageVector = it, contentDescription = null, tint = CinemaGold) }
         },
         trailingIcon = trailingIcon,
         visualTransformation = visualTransformation,
@@ -47,13 +44,15 @@ fun CinemaTextField(
         } else null,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = CinemaGold,
-            unfocusedBorderColor = Divider,
-            focusedLabelColor = CinemaGold,
+            unfocusedBorderColor = CardBorderGold,
+            focusedLabelColor = CinemaGoldLight,
             unfocusedLabelColor = TextSecondary,
             focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
             focusedContainerColor = BackgroundCard,
-            unfocusedContainerColor = BackgroundCard,
+            unfocusedContainerColor = BackgroundCardDark,
             errorBorderColor = ErrorRed,
+            errorContainerColor = BackgroundCardDark,
         ),
     )
 }

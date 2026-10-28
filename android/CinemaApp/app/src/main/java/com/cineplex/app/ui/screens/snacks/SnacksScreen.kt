@@ -1,6 +1,7 @@
 package com.cineplex.app.ui.screens.snacks
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +49,24 @@ fun SnacksScreen(
 
     var selectedCategory by remember { mutableStateOf("ALL") }
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadSnacks(showLoading = false, forceRefresh = true)
+                viewModel.loadBookingSnacks()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
+
     LaunchedEffect(saveState) {
         if (saveState is UiState.Success) {
             viewModel.resetSaveState()
@@ -62,7 +83,7 @@ fun SnacksScreen(
                         Text(
                             text = stringResource(R.string.snacks_menu_subtitle),
                             style = CinemaTypography.bodySmall,
-                            color = CinemaGold
+                            color = TextSecondary
                         )
                     }
                 },
@@ -108,19 +129,27 @@ fun SnacksScreen(
                         allSnacks.filter { it.category.uppercase() == selectedCategory }
                     }
 
+                    val selectedSnacks = viewModel.getSelectedSnacksList(allSnacks)
+                    val saveError = (saveState as? UiState.Error)?.message
+
                     SnacksContent(
                         snacks = filtered,
                         categories = categories,
                         selectedCategory = selectedCategory,
                         onCategorySelected = { selectedCategory = it },
                         quantities = quantities,
+                        selectedSnacks = selectedSnacks,
                         onIncrement = { viewModel.incrementQuantity(it) },
                         onDecrement = { viewModel.decrementQuantity(it) },
+                        onRemove = { viewModel.removeSnack(it) },
                         totalItems = viewModel.getTotalItemsCount(),
                         totalPrice = viewModel.calculateTotal(allSnacks),
-                        onContinue = { viewModel.submitSnacks() },
-                        onSkip = { onContinueToSummary(viewModel.bookingId) },
-                        isSaving = saveState is UiState.Loading
+                        onContinue = { viewModel.submitSnacks(clearAll = false) },
+                        onSkip = {
+                            viewModel.submitSnacks(clearAll = true)
+                        },
+                        isSaving = saveState is UiState.Loading,
+                        saveError = saveError,
                     )
                 }
             }
@@ -135,13 +164,16 @@ fun SnacksContent(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
     quantities: Map<Int, Int>,
+    selectedSnacks: List<SelectedSnackItem>,
     onIncrement: (Int) -> Unit,
     onDecrement: (Int) -> Unit,
+    onRemove: (Int) -> Unit,
     totalItems: Int,
     totalPrice: Double,
     onContinue: () -> Unit,
     onSkip: () -> Unit,
     isSaving: Boolean,
+    saveError: String? = null,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Category Filter Chips
@@ -165,13 +197,18 @@ fun SnacksContent(
                 FilterChip(
                     selected = isSelected,
                     onClick = { onCategorySelected(cat) },
-                    label = { Text(labelText) },
+                    label = { Text(labelText, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
                     modifier = Modifier.padding(end = 8.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = CinemaGold,
                         selectedLabelColor = TextOnGold,
                         containerColor = BackgroundCard,
-                        labelColor = TextPrimary
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = if (isSelected) CinemaGold else CardBorderGold
                     )
                 )
             }
@@ -179,7 +216,7 @@ fun SnacksContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Snack List
+        // Snack Menu List
         Box(modifier = Modifier.weight(1f)) {
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
@@ -197,15 +234,126 @@ fun SnacksContent(
             }
         }
 
+        // ─── Visible Selected Snacks Cart Breakdown ─────────────────────────
+        if (selectedSnacks.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = BackgroundElevated),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.selected_snacks_title, totalItems),
+                            style = CinemaTypography.titleSmall.copy(fontWeight = FontWeight.Bold, color = CinemaGold)
+                        )
+                        Text(
+                            text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", totalPrice)}",
+                            style = CinemaTypography.titleSmall.copy(fontWeight = FontWeight.Black, color = Color.White)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = BorderSubtle.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    selectedSnacks.forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.snack.name,
+                                    style = CinemaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, color = TextPrimary),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${stringResource(R.string.unit_price_each, String.format(java.util.Locale.ENGLISH, "%.2f", item.unitPrice))} • ₹${String.format(java.util.Locale.ENGLISH, "%.2f", item.subtotal)}",
+                                    style = CinemaTypography.labelSmall.copy(color = TextSecondary)
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { onDecrement(item.snack.id) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Remove,
+                                        contentDescription = stringResource(R.string.decrease),
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "${item.quantity}",
+                                    style = CinemaTypography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = TextPrimary),
+                                    modifier = Modifier.padding(horizontal = 6.dp)
+                                )
+                                IconButton(
+                                    onClick = { onIncrement(item.snack.id) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = stringResource(R.string.increase),
+                                        tint = CinemaGold,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onRemove(item.snack.id) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.remove_item),
+                                        tint = ErrorRed.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Bottom Navigation Summary Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+            colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp)
             ) {
+                if (saveError != null) {
+                    Text(
+                        text = saveError,
+                        color = ErrorRed,
+                        style = CinemaTypography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -218,15 +366,15 @@ fun SnacksContent(
                             color = TextSecondary
                         )
                         Text(
-                            text = "₹${String.format("%.2f", totalPrice)}",
+                            text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", totalPrice)}",
                             style = CinemaTypography.headlineMedium,
-                            color = CinemaGold,
-                            fontWeight = FontWeight.Bold
+                            color = Color.White,
+                            fontWeight = FontWeight.Black
                         )
                     }
 
                     CinemaButton(
-                        text = if (totalItems > 0) stringResource(R.string.continue_with_amount, String.format("%.2f", totalPrice)) else stringResource(R.string.continue_to_summary),
+                        text = if (totalItems > 0) stringResource(R.string.continue_with_amount, String.format(java.util.Locale.ENGLISH, "%.2f", totalPrice)) else stringResource(R.string.continue_to_summary),
                         onClick = if (totalItems > 0) onContinue else onSkip,
                         isLoading = isSaving,
                         modifier = Modifier.width(200.dp)
@@ -247,6 +395,7 @@ fun SnacksContent(
     }
 }
 
+
 @Composable
 fun SnackItemCard(
     snack: SnackDto,
@@ -257,7 +406,8 @@ fun SnackItemCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+        colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
     ) {
         Row(
             modifier = Modifier
@@ -273,6 +423,7 @@ fun SnackItemCard(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
             )
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -297,9 +448,9 @@ fun SnackItemCard(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "₹${String.format("%.2f", snack.price)}",
+                    text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", snack.price)}",
                     style = CinemaTypography.titleMedium,
-                    color = CinemaGold,
+                    color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -312,9 +463,10 @@ fun SnackItemCard(
                     onClick = onIncrement,
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CinemaGold.copy(alpha = 0.2f),
+                        containerColor = CinemaGold.copy(alpha = 0.16f),
                         contentColor = CinemaGold
                     ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f)),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Text(stringResource(R.string.add_snack), style = CinemaTypography.labelMedium, fontWeight = FontWeight.Bold)
@@ -324,6 +476,7 @@ fun SnackItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .background(BackgroundElevated, RoundedCornerShape(10.dp))
+                        .border(1.dp, CardBorderGold, RoundedCornerShape(10.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {

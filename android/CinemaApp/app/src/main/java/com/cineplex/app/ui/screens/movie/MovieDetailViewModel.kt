@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,22 +32,49 @@ class MovieDetailViewModel @Inject constructor(
     val uiState: StateFlow<MovieDetailUiState> = _uiState.asStateFlow()
 
     init {
-        loadMovieAndShows()
-    }
-
-    fun loadMovieAndShows() {
-        viewModelScope.launch {
+        val cached = movieRepository.getCachedMovie(movieId)
+        if (cached != null) {
             _uiState.value = MovieDetailUiState(
-                movieState = UiState.Loading,
+                movieState = UiState.Success(cached),
                 showsState = UiState.Loading
             )
+        }
+        loadMovieAndShows(showLoading = cached == null)
+    }
 
-            val movieRes = movieRepository.getMovie(movieId)
-            val showsRes = movieRepository.getShowsForMovie(movieId)
+    fun loadMovieAndShows(showLoading: Boolean = true) {
+        viewModelScope.launch {
+            val currentMovieState = _uiState.value.movieState
+            val currentShowsState = _uiState.value.showsState
+
+            if (showLoading) {
+                _uiState.value = MovieDetailUiState(
+                    movieState = if (currentMovieState is UiState.Success) currentMovieState else UiState.Loading,
+                    showsState = if (currentShowsState is UiState.Success) currentShowsState else UiState.Loading,
+                )
+            }
+
+            val movieDeferred = async { movieRepository.getMovie(movieId) }
+            val showsDeferred = async { movieRepository.getShowsForMovie(movieId) }
+
+            val movieRes = movieDeferred.await()
+            val showsRes = showsDeferred.await()
+
+            val finalMovieState = if (movieRes is UiState.Success || _uiState.value.movieState !is UiState.Success) {
+                movieRes
+            } else {
+                _uiState.value.movieState
+            }
+
+            val finalShowsState = if (showsRes is UiState.Success || _uiState.value.showsState !is UiState.Success) {
+                showsRes
+            } else {
+                _uiState.value.showsState
+            }
 
             _uiState.value = MovieDetailUiState(
-                movieState = movieRes,
-                showsState = showsRes
+                movieState = finalMovieState,
+                showsState = finalShowsState,
             )
         }
     }

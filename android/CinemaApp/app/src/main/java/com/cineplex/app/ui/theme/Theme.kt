@@ -5,17 +5,23 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val CinemaDarkColorScheme = darkColorScheme(
-    // Primary — cinematic gold
+    // Primary — Cinema Gold
     primary = CinemaGold,
     onPrimary = TextOnGold,
-    primaryContainer = CinemaGoldDark,
+    primaryContainer = BackgroundElevated,
     onPrimaryContainer = CinemaGoldLight,
 
-    // Background
+    // Secondary — Gold highlight
+    secondary = CinemaGoldLight,
+    onSecondary = TextOnGold,
+    secondaryContainer = BackgroundElevated,
+    onSecondaryContainer = CinemaGold,
+
+    // Background — Near-black #080808
     background = BackgroundDeep,
     onBackground = TextPrimary,
 
-    // Surface
+    // Surface — Elevated Cards #202020
     surface = BackgroundCard,
     onSurface = TextPrimary,
     surfaceVariant = BackgroundElevated,
@@ -27,16 +33,16 @@ private val CinemaDarkColorScheme = darkColorScheme(
     onError = TextPrimary,
 
     // Outline
-    outline = Divider,
-    outlineVariant = BackgroundSurface,
+    outline = BorderSubtle,
+    outlineVariant = Divider,
 
     // Inverse
     inverseSurface = TextPrimary,
     inverseOnSurface = BackgroundDeep,
-    inversePrimary = CinemaGoldDark,
+    inversePrimary = CinemaGoldLight,
 
     // Scrim
-    scrim = BackgroundDeep.copy(alpha = 0.8f),
+    scrim = BackgroundDeep.copy(alpha = 0.85f),
 )
 
 @Composable

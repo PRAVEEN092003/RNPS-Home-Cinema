@@ -18,10 +18,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.cineplex.app.ui.theme.*
+
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +39,13 @@ fun AdminDashboardScreen(
     onNavigateToPayments: () -> Unit,
     onNavigateToTicketVerify: () -> Unit,
     onNavigateToScreens: () -> Unit,
+    onLogout: () -> Unit,
+    viewModel: AdminDashboardViewModel = hiltViewModel(),
 ) {
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -45,6 +56,15 @@ fun AdminDashboardScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = TextPrimary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.logout(onLogout) }) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = ErrorRed
                         )
                     }
                 },
@@ -62,17 +82,30 @@ fun AdminDashboardScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "RNPS Home Cinema Admin",
-                style = CinemaTypography.headlineMedium,
-                color = CinemaGold,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "RNPS",
+                    style = CinemaTypography.headlineMedium.copy(
+                        color = CinemaGold,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.5.sp
+                    )
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "CONTROL CENTER",
+                    style = CinemaTypography.headlineMedium.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                )
+            }
             Text(
                 text = "Manage movies, shows, screens, snacks, and customer bookings",
                 style = CinemaTypography.bodySmall,
                 color = TextSecondary,
-                modifier = Modifier.padding(bottom = 20.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
             )
 
             LazyVerticalGrid(
@@ -137,6 +170,15 @@ fun AdminDashboardScreen(
                         onClick = onNavigateToTicketVerify
                     )
                 }
+                item {
+                    AdminDashboardCard(
+                        title = "Logout",
+                        subtitle = "Sign out of Admin Session",
+                        icon = Icons.Default.ExitToApp,
+                        isDestructive = true,
+                        onClick = { viewModel.logout(onLogout) }
+                    )
+                }
             }
         }
     }
@@ -147,17 +189,23 @@ fun AdminDashboardCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    isDestructive: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val accentColor = if (isDestructive) ErrorRed else CinemaGold
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(150.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDestructive) ErrorRed.copy(alpha = 0.08f) else BackgroundCard
+        ),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(CinemaGold.copy(alpha = 0.3f))
+            brush = androidx.compose.ui.graphics.SolidColor(
+                if (isDestructive) ErrorRed.copy(alpha = 0.45f) else CardBorderGold
+            )
         )
     ) {
         Column(
@@ -169,14 +217,14 @@ fun AdminDashboardCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = CinemaGold,
+                tint = accentColor,
                 modifier = Modifier.size(32.dp)
             )
             Column {
                 Text(
                     text = title,
                     style = CinemaTypography.bodyMedium,
-                    color = TextPrimary,
+                    color = if (isDestructive) ErrorRed else TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))

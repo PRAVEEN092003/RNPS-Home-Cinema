@@ -37,6 +37,7 @@ fun LoginScreen(
     val email by viewModel.emailState.collectAsState()
     val password by viewModel.passwordState.collectAsState()
     val loginState by viewModel.loginState.collectAsState()
+    val isServerWakingUp by viewModel.isServerWakingUp.collectAsState()
     val currentLanguage by viewModel.languageState.collectAsState()
 
     var passwordVisible by remember { mutableStateOf(false) }
@@ -116,6 +117,15 @@ fun LoginScreen(
                     ),
                 )
 
+                if (loginState is UiState.Loading && isServerWakingUp) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(id = R.string.server_waking_up),
+                        color = WarningAmber,
+                        style = CinemaTypography.bodySmall,
+                    )
+                }
+
                 if (loginState is UiState.Error) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -138,6 +148,7 @@ fun LoginScreen(
                     text = stringResource(id = R.string.sign_in),
                     onClick = { viewModel.login() },
                     isLoading = loginState is UiState.Loading,
+                    enabled = loginState !is UiState.Loading,
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -150,6 +161,7 @@ fun LoginScreen(
                         style = CinemaTypography.bodyMedium,
                         color = TextSecondary,
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = stringResource(id = R.string.register),
                         style = CinemaTypography.bodyMedium.copy(

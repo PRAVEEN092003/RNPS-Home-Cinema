@@ -51,8 +51,14 @@ interface CinemaApiService {
     @POST("api/bookings/")
     suspend fun createBooking(@Body request: CreateBookingRequest): Response<BookingDto>
 
+    @GET("api/bookings/{bookingId}")
+    suspend fun getBooking(@Path("bookingId") bookingId: Int): Response<BookingDto>
+
+    @POST("api/bookings/{bookingId}/cancel")
+    suspend fun cancelBooking(@Path("bookingId") bookingId: Int): Response<Map<String, String>>
+
     @GET("api/bookings/my")
-    suspend fun getMyBookings(): Response<List<BookingDto>>
+    suspend fun getMyBookings(@Query("status") status: String? = null): Response<List<BookingDto>>
 
     // ─── Snacks ───────────────────────────────────────────────────────────────
 

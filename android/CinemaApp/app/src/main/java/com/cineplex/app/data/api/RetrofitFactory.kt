@@ -21,16 +21,20 @@ object RetrofitFactory {
         coerceInputValues = true
     }
 
-    fun create(baseUrl: String, tokenProvider: () -> String?): CinemaApiService {
+    fun create(
+        baseUrl: String,
+        tokenProvider: () -> String?,
+        cacheDir: java.io.File? = null,
+    ): CinemaApiService {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.HEADERS
         }
 
         val authInterceptor = Interceptor { chain ->
             val request = chain.request()
             val path = request.url.encodedPath
             val builder = request.newBuilder()
-            if (!path.endsWith("/auth/register") && !path.endsWith("/auth/login")) {
+            if (!path.endsWith("/auth/register") && !path.endsWith("/auth/login") && !path.endsWith("/health")) {
                 val token = tokenProvider()
                 if (!token.isNullOrBlank()) {
                     builder.addHeader("Authorization", "Bearer $token")
@@ -39,18 +43,21 @@ object RetrofitFactory {
             chain.proceed(builder.build())
         }
 
-        val okhttp = OkHttpClient.Builder()
+        val okhttpBuilder = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .retryOnConnectionFailure(true)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(25, TimeUnit.SECONDS)
-            .writeTimeout(25, TimeUnit.SECONDS)
-            .build()
+            .connectTimeout(45, TimeUnit.SECONDS) // Gracefully accommodate Render Free cold starts
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+
+        if (cacheDir != null) {
+            okhttpBuilder.cache(okhttp3.Cache(java.io.File(cacheDir, "http_cache"), 10L * 1024 * 1024))
+        }
 
         return Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(okhttp)
+            .client(okhttpBuilder.build())
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(CinemaApiService::class.java)

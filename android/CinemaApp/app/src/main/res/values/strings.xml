@@ -44,6 +44,7 @@
     <string name="error_enter_email">Please enter your email address.</string>
     <string name="error_enter_password">Please enter your password.</string>
     <string name="error_enter_name">Please enter your full name.</string>
+    <string name="server_waking_up">Waking up server (free tier instance), please hold on…</string>
 
     <!-- Home -->
     <string name="home">Home</string>
@@ -117,6 +118,9 @@
     <string name="continue_with_amount">Continue (₹%1$s)</string>
     <string name="skip_snacks_continue">Skip Snacks &amp; Continue</string>
     <string name="continue_to_summary">Continue to Summary</string>
+    <string name="selected_snacks_title">Selected Snacks (%1$d)</string>
+    <string name="unit_price_each">₹%1$s each</string>
+    <string name="remove_item">Remove</string>
 
     <!-- Final Ticket & Payment -->
     <string name="final_ticket_summary">Final Ticket &amp; Summary</string>
@@ -196,4 +200,9 @@
     <string name="ticket_details_title">Ticket Details</string>
     <string name="ticket_details_not_found">Ticket details not found.</string>
     <string name="rating_label">Rating</string>
+    <string name="confirm_payment_title">Confirm Payment</string>
+    <string name="confirm_payment_desc">Please verify or enter your UPI Transaction Reference / UTR number below:</string>
+    <string name="txn_ref_placeholder">Transaction Reference / UTR</string>
+    <string name="submit_payment">Submit Payment</string>
+    <string name="cancel">Cancel</string>
 </resources>

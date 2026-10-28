@@ -108,14 +108,10 @@ fun CinemaNavGraph(navController: NavHostController) {
                     navController.popBackStack()
                 },
                 onBookingSuccessWithSnacks = { booking ->
-                    navController.navigate(Screen.SnacksSelection.createRoute(booking.id)) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                    }
+                    navController.navigate(Screen.SnacksSelection.createRoute(booking.id))
                 },
                 onBookingSuccessWithoutSnacks = { booking ->
-                    navController.navigate(Screen.FinalSummary.createRoute(booking.id)) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                    }
+                    navController.navigate(Screen.FinalSummary.createRoute(booking.id))
                 }
             )
         }
@@ -127,7 +123,9 @@ fun CinemaNavGraph(navController: NavHostController) {
             SnacksScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onContinueToSummary = { bookingId ->
-                    navController.navigate(Screen.FinalSummary.createRoute(bookingId))
+                    navController.navigate(Screen.FinalSummary.createRoute(bookingId)) {
+                        popUpTo(Screen.SnacksSelection.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -160,7 +158,12 @@ fun CinemaNavGraph(navController: NavHostController) {
                 onNavigateToSnacks = { navController.navigate(Screen.AdminSnacks.route) },
                 onNavigateToBookings = { navController.navigate(Screen.AdminBookings.route) },
                 onNavigateToPayments = { navController.navigate(Screen.AdminPayments.route) },
-                onNavigateToTicketVerify = { navController.navigate(Screen.AdminTicketVerify.route) }
+                onNavigateToTicketVerify = { navController.navigate(Screen.AdminTicketVerify.route) },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 

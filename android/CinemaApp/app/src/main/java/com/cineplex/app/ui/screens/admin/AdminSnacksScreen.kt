@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,12 +23,13 @@ import com.cineplex.app.ui.components.ErrorStateView
 import com.cineplex.app.ui.components.LoadingStateView
 import com.cineplex.app.ui.theme.*
 import com.cineplex.app.util.UiState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminSnacksScreen(
     onNavigateBack: () -> Unit,
-    viewModel: AdminSnacksViewModel = hiltViewModel()
+    viewModel: AdminSnacksViewModel = hiltViewModel(),
 ) {
     val snacksState by viewModel.snacksState.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
@@ -46,7 +49,7 @@ fun AdminSnacksScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Snack Management", style = CinemaTypography.headlineSmall) },
+                title = { Text("Snack Inventory", style = CinemaTypography.headlineSmall, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -69,7 +72,7 @@ fun AdminSnacksScreen(
                     showDialog = true
                 },
                 containerColor = CinemaGold,
-                contentColor = BackgroundDeep
+                contentColor = TextOnGold
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add Snack")
             }
@@ -112,11 +115,11 @@ fun AdminSnacksScreen(
                 SnackFormDialog(
                     snack = editingSnack,
                     onDismiss = { showDialog = false },
-                    onSubmit = { name, desc, cat, price, img ->
+                    onSubmit = { name, desc, category, price, image ->
                         if (editingSnack == null) {
-                            viewModel.createSnack(name, desc, cat, price, img)
+                            viewModel.createSnack(name, desc, category, price, image)
                         } else {
-                            viewModel.updateSnack(editingSnack!!.id, name, desc, cat, price, img)
+                            viewModel.updateSnack(editingSnack!!.id, name, desc, category, price, image)
                         }
                         showDialog = false
                     }
@@ -130,12 +133,13 @@ fun AdminSnacksScreen(
 fun SnackAdminCard(
     snack: SnackDto,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, BorderSubtle)
     ) {
         Row(
             modifier = Modifier
@@ -148,14 +152,14 @@ fun SnackAdminCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = snack.name,
-                        style = CinemaTypography.headlineSmall,
+                        style = CinemaTypography.bodyLarge,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         color = if (snack.isAvailable) SuccessGreen.copy(alpha = 0.2f) else ErrorRed.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = if (snack.isAvailable) "Available" else "Disabled",
@@ -169,7 +173,7 @@ fun SnackAdminCard(
                 Text(
                     text = "${snack.category} • Price: ₹${"%.2f".format(snack.price)}",
                     style = CinemaTypography.bodyMedium,
-                    color = CinemaGold,
+                    color = ElectricBlueLight,
                     fontWeight = FontWeight.Bold
                 )
                 if (!snack.description.isNullOrBlank()) {
@@ -183,7 +187,7 @@ fun SnackAdminCard(
 
             Row {
                 IconButton(onClick = onEdit) {
-                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = CinemaGold)
+                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = ElectricCinemaBlue)
                 }
                 IconButton(onClick = onDelete) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = ErrorRed)
@@ -229,7 +233,12 @@ fun SnackFormDialog(
                     onValueChange = { name = it },
                     label = { Text("Snack Name") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
 
                 Text("Category", style = CinemaTypography.bodySmall, color = TextSecondary)
@@ -241,7 +250,9 @@ fun SnackFormDialog(
                             label = { Text(cat, style = CinemaTypography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = CinemaGold,
-                                selectedLabelColor = BackgroundDeep
+                                selectedLabelColor = TextOnGold,
+                                containerColor = BackgroundCard,
+                                labelColor = TextSecondary
                             )
                         )
                     }
@@ -252,7 +263,12 @@ fun SnackFormDialog(
                     onValueChange = { description = it },
                     label = { Text("Description") },
                     maxLines = 2,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
 
                 OutlinedTextField(
@@ -260,7 +276,12 @@ fun SnackFormDialog(
                     onValueChange = { priceStr = it },
                     label = { Text("Price (₹)") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
 
                 OutlinedTextField(
@@ -268,7 +289,12 @@ fun SnackFormDialog(
                     onValueChange = { imageUrl = it },
                     label = { Text("Image URL") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
             }
         },
@@ -280,9 +306,9 @@ fun SnackFormDialog(
                         onSubmit(name, description, category, price, imageUrl)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = BackgroundDeep)
+                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = TextOnGold)
             ) {
-                Text(if (snack == null) "Create" else "Save")
+                Text(if (snack == null) "Create" else "Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

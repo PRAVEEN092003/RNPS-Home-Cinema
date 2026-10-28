@@ -185,4 +185,36 @@ def run_migrations(engine: Engine) -> None:
         except Exception as e:
             print(f"[MIGRATION] Warning: show_seats price sync encountered error: {e}")
 
+    # ============================================================
+    # 4. POSTGRESQL ENUM SHOWSEATSTATUS: ENSURE 'HELD' VALUE EXISTS
+    # ============================================================
+    if engine.dialect.name == "postgresql":
+        try:
+            with engine.connect() as conn:
+                has_held = conn.execute(
+                    text(
+                        """
+                        SELECT 1 
+                        FROM pg_enum e 
+                        JOIN pg_type t ON e.enumtypid = t.oid 
+                        JOIN pg_namespace n ON t.typnamespace = n.oid 
+                        WHERE n.nspname = 'public' 
+                          AND t.typname = 'showseatstatus' 
+                          AND e.enumlabel = 'HELD'
+                        """
+                    )
+                ).scalar()
+
+            if not has_held:
+                print("[MIGRATION] Adding 'HELD' value to public.showseatstatus enum...")
+                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                    conn.execute(
+                        text("ALTER TYPE public.showseatstatus ADD VALUE IF NOT EXISTS 'HELD'")
+                    )
+                print("[MIGRATION] Successfully added 'HELD' to public.showseatstatus enum.")
+            else:
+                print("[MIGRATION] Enum public.showseatstatus already contains 'HELD'.")
+        except Exception as e:
+            print(f"[MIGRATION] Warning: Enum migration check encountered: {e}")
+
     print("[MIGRATION] Database schema migration check complete.")

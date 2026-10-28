@@ -41,6 +41,7 @@ fun RegisterScreen(
     val phone by viewModel.phoneState.collectAsState()
     val password by viewModel.passwordState.collectAsState()
     val registerState by viewModel.registerState.collectAsState()
+    val isServerWakingUp by viewModel.isServerWakingUp.collectAsState()
 
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -136,6 +137,15 @@ fun RegisterScreen(
                     ),
                 )
 
+                if (registerState is UiState.Loading && isServerWakingUp) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(id = R.string.server_waking_up),
+                        color = WarningAmber,
+                        style = CinemaTypography.bodySmall,
+                    )
+                }
+
                 if (registerState is UiState.Error) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -158,6 +168,7 @@ fun RegisterScreen(
                     text = stringResource(id = R.string.register),
                     onClick = { viewModel.register() },
                     isLoading = registerState is UiState.Loading,
+                    enabled = registerState !is UiState.Loading,
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -170,6 +181,7 @@ fun RegisterScreen(
                         style = CinemaTypography.bodyMedium,
                         color = TextSecondary,
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = stringResource(id = R.string.sign_in),
                         style = CinemaTypography.bodyMedium.copy(

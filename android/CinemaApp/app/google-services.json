@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "143764223390",
+    "project_id": "rnps-home-cinema",
+    "storage_bucket": "rnps-home-cinema.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143764223390:android:66c019dfbdfa9de910528f",
+        "android_client_info": {
+          "package_name": "com.cineplex.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiYoeUe-pN8_n1cBMSpimQ4nnZgK_3wWg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

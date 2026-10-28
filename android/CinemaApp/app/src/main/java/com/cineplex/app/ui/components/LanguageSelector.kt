@@ -3,6 +3,7 @@ package com.cineplex.app.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,17 +61,17 @@ fun LanguageSelector(
         }
 
         Surface(
-            color = BackgroundElevated,
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, CinemaGold.copy(alpha = 0.25f)),
+            color = BackgroundCardDark,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, CardBorderGold),
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(4.dp),
+                    .padding(5.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -106,14 +107,14 @@ private fun LanguageOption(
         label = "bgColor"
     )
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) BackgroundDeep else TextSecondary,
+        targetValue = if (isSelected) TextOnGold else TextSecondary,
         label = "textColor"
     )
 
     Box(
         modifier = modifier
             .height(44.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(bgColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -122,7 +123,7 @@ private fun LanguageOption(
             text = title,
             style = CinemaTypography.labelLarge.copy(
                 color = contentColor,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                 fontSize = 15.sp,
                 letterSpacing = 0.5.sp
             ),

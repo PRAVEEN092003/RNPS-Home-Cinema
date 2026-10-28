@@ -225,6 +225,95 @@ def create_booking(
     )
 
 
+@router.get("/my", response_model=List[BookingResponse])
+def get_my_bookings(
+    status: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List all bookings for the currently authenticated user.
+    Optionally filter by booking status (e.g., PENDING, CONFIRMED, CANCELLED).
+    """
+    from app.schemas.schemas import BookingSnackResponse, PaymentResponse, TicketResponse
+    query = (
+        db.query(Booking)
+        .options(
+            joinedload(Booking.show).joinedload(Show.movie),
+            joinedload(Booking.show).joinedload(Show.screen),
+            joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
+            joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
+            joinedload(Booking.payment),
+            joinedload(Booking.ticket),
+        )
+        .filter(Booking.user_id == current_user.id)
+    )
+
+    filter_val = status or status_filter
+    if filter_val:
+        val = filter_val.upper().strip()
+        if val in ["PENDING"]:
+            query = query.filter(Booking.status == BookingStatus.PENDING)
+        elif val in ["CONFIRMED", "BOOKED", "PAID"]:
+            query = query.filter(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]))
+        elif val in ["CANCELLED", "FAILED", "REJECTED"]:
+            query = query.filter(Booking.status == BookingStatus.CANCELLED)
+        else:
+            query = query.filter(Booking.status == val)
+
+    bookings = query.order_by(Booking.created_at.desc()).all()
+
+    result = []
+    for b in bookings:
+        seats_resp = [
+            BookingSeatResponse(
+                id=bs.id,
+                seat_id=bs.seat_id,
+                seat_code=bs.seat.seat_code if bs.seat else "",
+                row_label=bs.seat.row_label if bs.seat else "",
+                seat_number=bs.seat.seat_number if bs.seat else 0,
+                price=bs.price,
+            )
+            for bs in b.booking_seats
+        ]
+        snacks_resp = [
+            BookingSnackResponse(
+                id=bsn.id,
+                snack_id=bsn.snack_id,
+                snack_name=bsn.snack.name if bsn.snack else "Snack",
+                quantity=bsn.quantity,
+                unit_price=bsn.unit_price,
+                total_price=bsn.total_price,
+            )
+            for bsn in b.booking_snacks
+        ]
+        ticket_subtotal = sum(bs.price for bs in b.booking_seats)
+        snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
+
+        result.append(
+            BookingResponse(
+                id=b.id,
+                user_id=b.user_id,
+                show_id=b.show_id,
+                booking_reference=b.booking_reference,
+                status=b.status,
+                total_amount=b.total_amount,
+                convenience_fee=b.convenience_fee,
+                total_seats=b.total_seats,
+                created_at=b.created_at,
+                show=ShowResponse.model_validate(b.show) if b.show else None,
+                seats=seats_resp,
+                snacks=snacks_resp,
+                ticket_amount=ticket_subtotal,
+                snacks_amount=snacks_subtotal,
+                payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
+                ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
+            )
+        )
+    return result
+
+
 @router.get("/{booking_id}", response_model=BookingResponse)
 def get_booking(
     booking_id: int,
@@ -363,76 +452,3 @@ def cancel_booking(
         )
 
     return {"status": "ok", "message": "Booking cancelled and seats released successfully"}
-
-
-
-@router.get("/my", response_model=List[BookingResponse])
-def get_my_bookings(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """List all bookings for the currently authenticated user."""
-    from app.schemas.schemas import BookingSnackResponse, PaymentResponse, TicketResponse
-    bookings = (
-        db.query(Booking)
-        .options(
-            joinedload(Booking.show).joinedload(Show.movie),
-            joinedload(Booking.show).joinedload(Show.screen),
-            joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
-            joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
-            joinedload(Booking.ticket),
-        )
-        .filter(Booking.user_id == current_user.id)
-        .order_by(Booking.created_at.desc())
-        .all()
-    )
-
-    result = []
-    for b in bookings:
-        seats_resp = [
-            BookingSeatResponse(
-                id=bs.id,
-                seat_id=bs.seat_id,
-                seat_code=bs.seat.seat_code if bs.seat else "",
-                row_label=bs.seat.row_label if bs.seat else "",
-                seat_number=bs.seat.seat_number if bs.seat else 0,
-                price=bs.price,
-            )
-            for bs in b.booking_seats
-        ]
-        snacks_resp = [
-            BookingSnackResponse(
-                id=bsn.id,
-                snack_id=bsn.snack_id,
-                snack_name=bsn.snack.name if bsn.snack else "Snack",
-                quantity=bsn.quantity,
-                unit_price=bsn.unit_price,
-                total_price=bsn.total_price,
-            )
-            for bsn in b.booking_snacks
-        ]
-        ticket_subtotal = sum(bs.price for bs in b.booking_seats)
-        snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
-
-        result.append(
-            BookingResponse(
-                id=b.id,
-                user_id=b.user_id,
-                show_id=b.show_id,
-                booking_reference=b.booking_reference,
-                status=b.status,
-                total_amount=b.total_amount,
-                convenience_fee=b.convenience_fee,
-                total_seats=b.total_seats,
-                created_at=b.created_at,
-                show=ShowResponse.model_validate(b.show) if b.show else None,
-                seats=seats_resp,
-                snacks=snacks_resp,
-                ticket_amount=ticket_subtotal,
-                snacks_amount=snacks_subtotal,
-                payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
-                ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
-            )
-        )
-    return result

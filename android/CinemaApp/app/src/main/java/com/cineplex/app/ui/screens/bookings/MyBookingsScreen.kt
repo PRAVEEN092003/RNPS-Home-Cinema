@@ -15,10 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cineplex.app.R
@@ -41,7 +43,20 @@ fun MyBookingsScreen(
     viewModel: MyBookingsViewModel = hiltViewModel(),
 ) {
     val bookingsState by viewModel.bookingsState.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: All, 1: Pending, 2: Confirmed, 3: Cancelled
+    val selectedTab by viewModel.selectedTab.collectAsState()
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.loadBookings()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -82,26 +97,27 @@ fun MyBookingsScreen(
                     )
                 }
             ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(id = R.string.tab_all_bookings), style = CinemaTypography.titleMedium) }
+                val tabTitles = listOf(
+                    stringResource(id = R.string.tab_all_bookings),
+                    stringResource(id = R.string.tab_pending),
+                    stringResource(id = R.string.tab_confirmed),
+                    stringResource(id = R.string.tab_cancelled)
                 )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text(stringResource(id = R.string.tab_pending), style = CinemaTypography.titleMedium) }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text(stringResource(id = R.string.tab_confirmed), style = CinemaTypography.titleMedium) }
-                )
-                Tab(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    text = { Text(stringResource(id = R.string.tab_cancelled), style = CinemaTypography.titleMedium) }
-                )
+                tabTitles.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { viewModel.selectTab(index) },
+                        text = {
+                            Text(
+                                text = title,
+                                style = CinemaTypography.titleMedium.copy(
+                                    color = if (selectedTab == index) Color.White else TextSecondary,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                )
+                            )
+                        }
+                    )
+                }
             }
 
             Box(modifier = Modifier.weight(1f)) {
@@ -116,9 +132,9 @@ fun MyBookingsScreen(
                     is UiState.Success -> {
                         val allBookings = state.data
                         val filtered = when (selectedTab) {
-                            1 -> allBookings.filter { it.status == "PENDING" }
-                            2 -> allBookings.filter { it.status == "CONFIRMED" || it.status == "BOOKED" }
-                            3 -> allBookings.filter { it.status == "CANCELLED" || it.status == "REJECTED" || it.payment?.status == "FAILED" }
+                            1 -> allBookings.filter { it.status.uppercase() == "PENDING" }
+                            2 -> allBookings.filter { it.status.uppercase() in listOf("CONFIRMED", "BOOKED", "COMPLETED") }
+                            3 -> allBookings.filter { it.status.uppercase() in listOf("CANCELLED", "REJECTED") || it.payment?.status?.uppercase() == "FAILED" }
                             else -> allBookings
                         }
 
@@ -149,8 +165,8 @@ fun BookingCard(
     booking: BookingDto,
     onClick: () -> Unit,
 ) {
-    val isConfirmed = booking.status == "CONFIRMED" || booking.status == "BOOKED"
-    val isCancelled = booking.status == "CANCELLED" || booking.payment?.status == "FAILED"
+    val isConfirmed = booking.status.uppercase() in listOf("CONFIRMED", "BOOKED", "COMPLETED")
+    val isCancelled = booking.status.uppercase() in listOf("CANCELLED", "REJECTED") || booking.payment?.status?.uppercase() == "FAILED"
     val badgeColor = when {
         isConfirmed -> SuccessGreen
         isCancelled -> ErrorRed
@@ -168,7 +184,8 @@ fun BookingCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderGold),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -182,26 +199,29 @@ fun BookingCard(
                     text = booking.bookingReference,
                     style = CinemaTypography.titleMedium.copy(
                         color = CinemaGold,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
                     )
                 )
 
                 Surface(
-                    color = badgeColor.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(12.dp)
+                    color = badgeColor.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f))
                 ) {
                     Text(
                         text = badgeText,
                         style = CinemaTypography.labelSmall.copy(
                             color = badgeColor,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
                         ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = booking.show?.movie?.title ?: stringResource(id = R.string.app_name),
@@ -212,7 +232,7 @@ fun BookingCard(
 
             val showDateTimeStr = DateTimeUtils.formatShowDateTime(booking.show?.startTime)
             if (showDateTimeStr.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = showDateTimeStr,
                     style = CinemaTypography.bodySmall,
@@ -230,18 +250,32 @@ fun BookingCard(
                 color = TextSecondary
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             val seatCodes = booking.seats.joinToString(", ") { it.seatCode }
             if (seatCodes.isNotBlank()) {
-                Text(
-                    text = stringResource(id = R.string.seats_with_value, seatCodes),
-                    style = CinemaTypography.bodySmall,
-                    color = CinemaGold
-                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = CinemaGold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
+                    ) {
+                        Text(
+                            text = seatCodes,
+                            style = CinemaTypography.labelSmall.copy(
+                                color = CinemaGoldLight,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,8 +290,8 @@ fun BookingCard(
                 Text(
                     text = "₹${String.format(java.util.Locale.ENGLISH, "%.2f", booking.totalAmount)}",
                     style = CinemaTypography.titleLarge,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
+                    color = Color.White,
+                    fontWeight = FontWeight.Black
                 )
             }
         }

@@ -40,10 +40,18 @@ class ProfileViewModel @Inject constructor(
         loadProfile()
     }
 
-    fun loadProfile() {
+    fun loadProfile(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _userState.value = UiState.Loading
-            _userState.value = authRepository.getMe()
+            val cached = authRepository.getCachedUser()
+            if (cached != null) {
+                _userState.value = UiState.Success(cached)
+            } else if (showLoading) {
+                _userState.value = UiState.Loading
+            }
+            val res = authRepository.getMe()
+            if (res is UiState.Success || cached == null) {
+                _userState.value = res
+            }
         }
     }
 

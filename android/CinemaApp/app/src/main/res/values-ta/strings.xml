@@ -44,6 +44,7 @@
     <string name="error_enter_email">உங்கள் மின்னஞ்சல் முகவரியை உள்ளிடவும்.</string>
     <string name="error_enter_password">உங்கள் கடவுச்சொல்லை உள்ளிடவும்.</string>
     <string name="error_enter_name">உங்கள் முழு பெயரை உள்ளிடவும்.</string>
+    <string name="server_waking_up">சர்வர் தொடங்குகிறது, தயவுசெய்து காத்திருக்கவும்…</string>
 
     <!-- Home -->
     <string name="home">முகப்பு</string>
@@ -117,6 +118,9 @@
     <string name="continue_with_amount">தொடர்க (₹%1$s)</string>
     <string name="skip_snacks_continue">சிற்றுண்டிகளை தவிர்த்து தொடர்க</string>
     <string name="continue_to_summary">சுருக்கத்திற்கு தொடர்க</string>
+    <string name="selected_snacks_title">தேர்ந்தெடுக்கப்பட்ட சிற்றுண்டிகள் (%1$d)</string>
+    <string name="unit_price_each">₹%1$s ஒவ்வொன்றும்</string>
+    <string name="remove_item">நீக்கு</string>
 
     <!-- Final Ticket & Payment -->
     <string name="final_ticket_summary">இறுதி டிக்கெட் மற்றும் சுருக்கம்</string>
@@ -196,4 +200,9 @@
     <string name="ticket_details_title">டிக்கெட் விவரங்கள்</string>
     <string name="ticket_details_not_found">டிக்கெட் விவரங்கள் கிடைக்கவில்லை.</string>
     <string name="rating_label">மதிப்பீடு</string>
+    <string name="confirm_payment_title">கட்டணத்தை உறுதிப்படுத்துங்கள்</string>
+    <string name="confirm_payment_desc">உங்கள் UPI பரிவர்த்தனை எண் / UTR எண்ணை கீழே உள்ளிடவும்:</string>
+    <string name="txn_ref_placeholder">பரிவர்த்தனை எண் / UTR</string>
+    <string name="submit_payment">கட்டணத்தை சமர்ப்பிக்கவும்</string>
+    <string name="cancel">ரத்து செய்</string>
 </resources>

@@ -37,7 +37,11 @@ data class UserDto(
     val role: String,
     @SerialName("is_active") val isActive: Boolean,
     @SerialName("created_at") val createdAt: String,
-)
+    @SerialName("uid") val uid: String? = null,
+) {
+    val canonicalUid: String
+        get() = uid?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 @Serializable
 data class UserUpdateRequest(
@@ -68,7 +72,11 @@ data class MovieDto(
     @SerialName("is_upcoming") val isUpcoming: Boolean = false,
     @SerialName("is_active") val isActive: Boolean,
     @SerialName("created_at") val createdAt: String,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -81,7 +89,11 @@ data class ScreenDto(
     @SerialName("has_dolby_atmos") val hasDolbyAtmos: Boolean = true,
     @SerialName("total_seats") val totalSeats: Int,
     @SerialName("is_active") val isActive: Boolean,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 @Serializable
 data class ScreenUpdateRequest(
@@ -111,7 +123,11 @@ data class ShowDto(
     @SerialName("is_active") val isActive: Boolean,
     val movie: MovieDto? = null,
     val screen: ScreenDto? = null,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 // ─── ShowSeat ─────────────────────────────────────────────────────────────────
 
@@ -220,7 +236,11 @@ data class SnackDto(
     val price: Double,
     @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("is_available") val isAvailable: Boolean = true,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 @Serializable
 data class SnackItemRequest(
@@ -281,7 +301,11 @@ data class PaymentDto(
     val status: String,
     @SerialName("transaction_id") val transactionId: String? = null,
     @SerialName("created_at") val createdAt: String,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 @Serializable
 data class TicketDto(
@@ -290,7 +314,11 @@ data class TicketDto(
     @SerialName("qr_data") val qrData: String? = null,
     @SerialName("issued_at") val issuedAt: String,
     @SerialName("is_used") val isUsed: Boolean = false,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 // ─── Booking DTOs ─────────────────────────────────────────────────────────────
 
@@ -328,7 +356,11 @@ data class BookingDto(
     @SerialName("snacks_amount") val snacksAmount: Double = 0.0,
     val payment: PaymentDto? = null,
     val ticket: TicketDto? = null,
-)
+    @SerialName("document_id") val documentId: String? = null,
+) {
+    val canonicalId: String
+        get() = documentId?.takeIf { it.isNotBlank() } ?: id.toString()
+}
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 

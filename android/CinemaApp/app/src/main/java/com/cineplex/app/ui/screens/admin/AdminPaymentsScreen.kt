@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -107,6 +108,7 @@ fun AdminPaymentCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, CardBorderGold),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
@@ -162,7 +164,7 @@ fun AdminPaymentCard(
                 Text(
                     text = "Snacks: $snacksStr",
                     style = CinemaTypography.bodySmall,
-                    color = CinemaGold
+                    color = ElectricBlueLight
                 )
             }
 
@@ -175,7 +177,7 @@ fun AdminPaymentCard(
                 )
             }
 
-            Divider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Divider)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

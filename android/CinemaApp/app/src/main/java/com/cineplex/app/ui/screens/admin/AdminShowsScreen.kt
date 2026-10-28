@@ -1,5 +1,6 @@
 package com.cineplex.app.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,7 +57,7 @@ fun AdminShowsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Show Management", style = CinemaTypography.headlineSmall) },
+                title = { Text("Show Management", style = CinemaTypography.headlineSmall, color = TextPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -78,7 +80,7 @@ fun AdminShowsScreen(
                     showDialog = true
                 },
                 containerColor = CinemaGold,
-                contentColor = BackgroundDeep
+                contentColor = TextOnGold
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add Show")
             }
@@ -145,7 +147,8 @@ fun ShowAdminCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundCard)
+        colors = CardDefaults.cardColors(containerColor = BackgroundCard),
+        border = BorderStroke(1.dp, BorderSubtle)
     ) {
         Row(
             modifier = Modifier
@@ -179,7 +182,7 @@ fun ShowAdminCard(
                 Text(
                     text = "${show.screen?.name ?: "Screen #${show.screenId}"} • Price: ₹${String.format(java.util.Locale.ENGLISH, "%.2f", show.basePrice)}",
                     style = CinemaTypography.bodyMedium,
-                    color = CinemaGold,
+                    color = ElectricBlueLight,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -193,7 +196,7 @@ fun ShowAdminCard(
 
             Row {
                 IconButton(onClick = onEdit) {
-                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = CinemaGold)
+                    Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit", tint = ElectricCinemaBlue)
                 }
                 IconButton(onClick = onDelete) {
                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = ErrorRed)
@@ -259,7 +262,7 @@ fun ShowFormDialog(
                         onClick = { movieDropdownExpanded = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f))
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -267,7 +270,7 @@ fun ShowFormDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(currentMovieTitle, style = CinemaTypography.bodyMedium)
-                            Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null, tint = CinemaGold)
+                            Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null, tint = ElectricCinemaBlue)
                         }
                     }
                     DropdownMenu(
@@ -295,7 +298,7 @@ fun ShowFormDialog(
                         label = { Text("Screen 1 (Standard)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep,
+                            selectedLabelColor = TextOnGold,
                             containerColor = BackgroundCard,
                             labelColor = TextSecondary
                         )
@@ -306,7 +309,7 @@ fun ShowFormDialog(
                         label = { Text("Screen 2 (VIP)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CinemaGold,
-                            selectedLabelColor = BackgroundDeep,
+                            selectedLabelColor = TextOnGold,
                             containerColor = BackgroundCard,
                             labelColor = TextSecondary
                         )
@@ -332,7 +335,7 @@ fun ShowFormDialog(
                         },
                     color = BackgroundCard,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.5f))
+                    border = BorderStroke(1.dp, BorderSubtle)
                 ) {
                     Row(
                         modifier = Modifier
@@ -342,7 +345,7 @@ fun ShowFormDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = null, tint = CinemaGold)
+                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = null, tint = ElectricCinemaBlue)
                             Text(
                                 text = DateTimeUtils.formatShowDate(selectedDate),
                                 style = CinemaTypography.titleMedium.copy(color = TextPrimary, fontWeight = FontWeight.Bold)
@@ -350,7 +353,7 @@ fun ShowFormDialog(
                         }
                         Text(
                             text = "Change",
-                            style = CinemaTypography.labelSmall.copy(color = CinemaGold, fontWeight = FontWeight.Bold)
+                            style = CinemaTypography.labelSmall.copy(color = ElectricCinemaBlue, fontWeight = FontWeight.Bold)
                         )
                     }
                 }
@@ -361,7 +364,7 @@ fun ShowFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.4f))
+                    border = BorderStroke(1.dp, BorderSubtle)
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -374,7 +377,7 @@ fun ShowFormDialog(
                         ) {
                             Text(
                                 text = DateTimeUtils.formatTime12H(selectedHour12, selectedMinute, isAm),
-                                style = CinemaTypography.headlineMedium.copy(color = CinemaGold, fontWeight = FontWeight.ExtraBold)
+                                style = CinemaTypography.headlineMedium.copy(color = TextPrimary, fontWeight = FontWeight.ExtraBold)
                             )
                             OutlinedButton(
                                 onClick = {
@@ -393,8 +396,8 @@ fun ShowFormDialog(
                                     )
                                     timeDialog.show()
                                 },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = CinemaGold),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGold.copy(alpha = 0.6f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ElectricCinemaBlue),
+                                border = BorderStroke(1.dp, BorderSubtle),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Icon(imageVector = Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -472,8 +475,8 @@ fun ShowFormDialog(
                                     onClick = { isAm = true },
                                     label = { Text("AM", fontWeight = FontWeight.Bold, style = CinemaTypography.labelSmall) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = CinemaGold,
-                                        selectedLabelColor = BackgroundDeep,
+                                        selectedContainerColor = ElectricCinemaBlue,
+                                        selectedLabelColor = Color.White,
                                         containerColor = BackgroundElevated,
                                         labelColor = TextSecondary
                                     ),
@@ -484,8 +487,8 @@ fun ShowFormDialog(
                                     onClick = { isAm = false },
                                     label = { Text("PM", fontWeight = FontWeight.Bold, style = CinemaTypography.labelSmall) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = CinemaGold,
-                                        selectedLabelColor = BackgroundDeep,
+                                        selectedContainerColor = ElectricCinemaBlue,
+                                        selectedLabelColor = Color.White,
                                         containerColor = BackgroundElevated,
                                         labelColor = TextSecondary
                                     ),
@@ -507,7 +510,12 @@ fun ShowFormDialog(
                     isError = priceError != null,
                     supportingText = priceError?.let { err -> { Text(err, color = ErrorRed) } },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CinemaGold, focusedLabelColor = CinemaGold)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricCinemaBlue,
+                        focusedLabelColor = ElectricBlueLight,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
                 )
             }
         },
@@ -527,9 +535,9 @@ fun ShowFormDialog(
                     val endIso = endDt.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                     onSubmit(selectedMovieId, selectedScreenId, startIso, endIso, price)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = BackgroundDeep)
+                colors = ButtonDefaults.buttonColors(containerColor = CinemaGold, contentColor = TextOnGold)
             ) {
-                Text(if (show == null) "Create" else "Save")
+                Text(if (show == null) "Create" else "Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

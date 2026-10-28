@@ -29,10 +29,15 @@ class AdminSnacksViewModel @Inject constructor(
         loadSnacks()
     }
 
-    fun loadSnacks() {
+    fun loadSnacks(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            _snacksState.value = UiState.Loading
-            _snacksState.value = repository.getSnacks()
+            if (forceRefresh) {
+                repository.invalidateSnacksCache()
+            }
+            if (_snacksState.value !is UiState.Success) {
+                _snacksState.value = UiState.Loading
+            }
+            _snacksState.value = repository.getSnacks(forceRefresh = forceRefresh)
         }
     }
 
@@ -54,7 +59,7 @@ class AdminSnacksViewModel @Inject constructor(
             when (val result = repository.createSnack(request)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Snack '${result.data.name}' added successfully!"
-                    loadSnacks()
+                    loadSnacks(forceRefresh = true)
                 }
                 is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
                 else -> {}
@@ -81,7 +86,7 @@ class AdminSnacksViewModel @Inject constructor(
             when (val result = repository.updateSnack(snackId, request)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Snack updated successfully!"
-                    loadSnacks()
+                    loadSnacks(forceRefresh = true)
                 }
                 is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
                 else -> {}
@@ -90,13 +95,22 @@ class AdminSnacksViewModel @Inject constructor(
     }
 
     fun deleteSnack(snackId: Int) {
+        val previousState = _snacksState.value
+        val currentList = (previousState as? UiState.Success)?.data ?: emptyList()
+        // Optimistic UI update: immediately remove from displayed list
+        _snacksState.value = UiState.Success(currentList.filter { it.id != snackId })
+
         viewModelScope.launch {
             when (val result = repository.deleteSnack(snackId)) {
                 is UiState.Success -> {
                     _actionMessage.value = "Snack deactivated!"
-                    loadSnacks()
+                    loadSnacks(forceRefresh = true)
                 }
-                is UiState.Error -> _actionMessage.value = "Failed: ${result.message}"
+                is UiState.Error -> {
+                    // Rollback to previous state on failure
+                    _snacksState.value = previousState
+                    _actionMessage.value = "Failed: ${result.message}"
+                }
                 else -> {}
             }
         }

@@ -9,6 +9,9 @@ import com.cineplex.app.data.model.ShowSeatDto
 import com.cineplex.app.data.repository.MovieRepository
 import com.cineplex.app.util.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,19 +35,27 @@ class SeatSelectionViewModel @Inject constructor(
     private val _bookingState = MutableStateFlow<UiState<BookingDto>?>(null)
     val bookingState: StateFlow<UiState<BookingDto>?> = _bookingState.asStateFlow()
 
+    var activeBookingId: Int? = null
+        private set
+
+    // Independent scope with SupervisorJob so back-navigation doesn't abort seat-release network requests
+    internal var releaseScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     init {
         loadSeats()
     }
 
-    fun loadSeats() {
+    fun loadSeats(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _seatsState.value = UiState.Loading
+            if (showLoading && _seatsState.value !is UiState.Success) {
+                _seatsState.value = UiState.Loading
+            }
             _seatsState.value = movieRepository.getShowSeats(showId)
         }
     }
 
     fun toggleSeatSelection(seat: ShowSeatDto) {
-        if (seat.status == "BOOKED" || seat.status == "BLOCKED") return
+        if (seat.status == "BOOKED" || seat.status == "BLOCKED" || seat.status == "HELD") return
 
         val current = _selectedSeatIds.value.toMutableSet()
         if (current.contains(seat.seatId)) {
@@ -81,14 +92,59 @@ class SeatSelectionViewModel @Inject constructor(
             return
         }
 
+        _bookingState.value = UiState.Loading
         viewModelScope.launch {
-            _bookingState.value = UiState.Loading
+            val previousBookingId = activeBookingId
+            if (previousBookingId != null) {
+                try {
+                    movieRepository.cancelBooking(previousBookingId)
+                } catch (_: Exception) {}
+                activeBookingId = null
+            }
             val res = movieRepository.createBooking(showId, selectedIds)
+            if (res is UiState.Success) {
+                activeBookingId = res.data.id
+            }
             _bookingState.value = res
+        }
+    }
+
+    fun cancelActiveBooking(onCancelled: () -> Unit = {}) {
+        val bId = activeBookingId ?: run {
+            _selectedSeatIds.value = emptySet()
+            onCancelled()
+            return
+        }
+        activeBookingId = null
+        _selectedSeatIds.value = emptySet()
+
+        // Persistent release call on releaseScope so it survives ViewModel cancellation
+        releaseScope.launch {
+            try {
+                movieRepository.cancelBooking(bId)
+            } catch (_: Exception) {}
+            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                loadSeats(showLoading = false)
+                onCancelled()
+            }
         }
     }
 
     fun resetBookingState() {
         _bookingState.value = null
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        val bId = activeBookingId
+        if (bId != null) {
+            activeBookingId = null
+            releaseScope.launch {
+                try {
+                    movieRepository.cancelBooking(bId)
+                } catch (_: Exception) {}
+            }
+        }
+    }
 }
+
