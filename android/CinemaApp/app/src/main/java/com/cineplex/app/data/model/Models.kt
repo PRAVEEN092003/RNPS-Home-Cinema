@@ -30,13 +30,13 @@ data class TokenResponse(
 
 @Serializable
 data class UserDto(
-    val id: Int,
-    val name: String,
-    val email: String,
+    val id: Int = 0,
+    val name: String = "",
+    val email: String = "",
     val phone: String? = null,
-    val role: String,
-    @SerialName("is_active") val isActive: Boolean,
-    @SerialName("created_at") val createdAt: String,
+    val role: String = "CUSTOMER",
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("created_at") val createdAt: String = "",
     @SerialName("uid") val uid: String? = null,
 ) {
     val canonicalUid: String
@@ -306,13 +306,13 @@ data class TicketVerificationDto(
 
 @Serializable
 data class PaymentDto(
-    val id: Int,
-    @SerialName("booking_id") val bookingId: Int,
-    val amount: Double,
+    val id: Int = 0,
+    @SerialName("booking_id") val bookingId: Int = 0,
+    val amount: Double = 0.0,
     val method: String? = null,
-    val status: String,
+    val status: String = "PENDING",
     @SerialName("transaction_id") val transactionId: String? = null,
-    @SerialName("created_at") val createdAt: String,
+    @SerialName("created_at") val createdAt: String = "",
     @SerialName("paid_at") val paidAt: String? = null,
     @SerialName("verified_at") val verifiedAt: String? = null,
     @SerialName("verified_by_id") val verifiedById: Int? = null,
