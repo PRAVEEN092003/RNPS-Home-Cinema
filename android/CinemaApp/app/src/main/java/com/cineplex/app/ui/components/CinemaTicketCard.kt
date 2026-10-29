@@ -11,8 +11,10 @@ import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.foundation.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +33,7 @@ import com.cineplex.app.R
 import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.ui.theme.*
 import com.cineplex.app.util.DateTimeUtils
+import com.cineplex.app.util.QrCodeUtils
 import java.util.Locale
 
 @Composable
@@ -453,6 +457,13 @@ fun CinemaTicketCard(
             if (showQrCode && (isPaid || booking.ticket != null)) {
                 Spacer(modifier = Modifier.height(18.dp))
 
+                val qrRaw = booking.ticket?.qrData?.takeIf { it.isNotBlank() }
+                    ?: booking.ticket?.ticketCode?.takeIf { it.isNotBlank() }
+                    ?: booking.bookingReference
+                val qrBitmap = remember(qrRaw) {
+                    QrCodeUtils.generateQrBitmap(qrRaw, sizePx = 400)
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -461,21 +472,29 @@ fun CinemaTicketCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(148.dp)
+                            .size(160.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White)
                             .border(2.dp, CinemaGold, RoundedCornerShape(16.dp))
-                            .padding(10.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = stringResource(id = R.string.ticket_qr_code),
-                                tint = Color(0xFF050505),
-                                modifier = Modifier.size(88.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            if (qrBitmap != null) {
+                                Image(
+                                    bitmap = qrBitmap.asImageBitmap(),
+                                    contentDescription = stringResource(id = R.string.ticket_qr_code),
+                                    modifier = Modifier.size(112.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = stringResource(id = R.string.ticket_qr_code),
+                                    tint = Color(0xFF050505),
+                                    modifier = Modifier.size(90.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = booking.ticket?.ticketCode ?: booking.bookingReference,
                                 style = CinemaTypography.labelSmall.copy(

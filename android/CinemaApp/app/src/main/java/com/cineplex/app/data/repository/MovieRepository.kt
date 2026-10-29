@@ -209,17 +209,36 @@ open class MovieRepository protected constructor(
     suspend fun getAdminPayments(): UiState<List<BookingDto>> =
         safeApiCall(network!!) { api!!.getAdminPayments() }
 
-    suspend fun getAdminBookings(statusFilter: String? = null): UiState<List<BookingDto>> =
-        safeApiCall(network!!) { api!!.getAdminBookings(statusFilter) }
+    open suspend fun getAdminBookings(
+        statusFilter: String? = null,
+        search: String? = null,
+        paymentStatus: String? = null,
+        movieId: Int? = null,
+        bookingDate: String? = null,
+        showDate: String? = null,
+    ): UiState<List<BookingDto>> =
+        safeApiCall(network!!) {
+            api!!.getAdminBookings(
+                statusFilter = statusFilter,
+                search = search,
+                paymentStatus = paymentStatus,
+                movieId = movieId,
+                bookingDate = bookingDate,
+                showDate = showDate,
+            )
+        }
 
-    suspend fun verifyPayment(paymentId: Int, approve: Boolean): UiState<BookingDto> =
+    open suspend fun verifyPayment(paymentId: Int, approve: Boolean): UiState<BookingDto> =
         safeApiCall(network!!) {
             val action = if (approve) "APPROVE" else "REJECT"
             api!!.verifyPayment(paymentId, PaymentVerificationRequest(action = action))
         }
 
-    suspend fun verifyTicket(code: String): UiState<TicketVerificationDto> =
+    open suspend fun verifyTicket(code: String): UiState<TicketVerificationDto> =
         safeApiCall(network!!) { api!!.verifyTicket(code) }
+
+    open suspend fun checkInTicket(code: String): UiState<TicketVerificationDto> =
+        safeApiCall(network!!) { api!!.checkInTicket(code) }
 
     open suspend fun getPaymentConfig(): UiState<PaymentConfigDto> {
         val now = System.currentTimeMillis()

@@ -1,8 +1,10 @@
 package com.cineplex.app.util
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -10,6 +12,9 @@ object DateTimeUtils {
 
     private val DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
     private val TIME_12H_FORMATTER = DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH)
+    private val IST_ZONE = ZoneId.of("Asia/Kolkata")
+    private val UTC_ZONE = ZoneId.of("UTC")
+    private val IST_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.ENGLISH)
 
     /**
      * Parses ISO-8601 or standard datetime strings without unintended timezone shifts.
@@ -121,5 +126,32 @@ object DateTimeUtils {
         val hour24 = to24Hour(hour12, isAm)
         val ldt = LocalDateTime.of(date, LocalTime.of(hour24, minute, 0))
         return ldt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }
+
+    /**
+     * Converts any server timestamp (UTC, ISO with/without Z or offset) to Indian Standard Time (IST)
+     * e.g. "29 Oct 2026, 07:30 PM"
+     */
+    fun formatToIstDateTime(raw: String?): String {
+        if (raw.isNullOrBlank()) return "N/A"
+        return try {
+            val trimmed = raw.trim()
+            val zonedDateTime = when {
+                trimmed.endsWith("Z") || trimmed.contains("+") -> {
+                    Instant.parse(trimmed).atZone(IST_ZONE)
+                }
+                trimmed.contains("T") -> {
+                    val ldt = LocalDateTime.parse(if (trimmed.length >= 19) trimmed.substring(0, 19) else trimmed)
+                    ldt.atZone(UTC_ZONE).withZoneSameInstant(IST_ZONE)
+                }
+                else -> {
+                    val ldt = parseLocalDateTime(trimmed)
+                    ldt.atZone(IST_ZONE)
+                }
+            }
+            zonedDateTime.format(IST_DATETIME_FORMATTER)
+        } catch (e: Exception) {
+            formatShowDateTime(raw)
+        }
     }
 }

@@ -6,6 +6,8 @@ import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.data.repository.MovieRepository
 import com.cineplex.app.util.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,23 +22,64 @@ class AdminBookingsViewModel @Inject constructor(
     private val _bookingsState = MutableStateFlow<UiState<List<BookingDto>>>(UiState.Loading)
     val bookingsState: StateFlow<UiState<List<BookingDto>>> = _bookingsState.asStateFlow()
 
-    private val _selectedFilter = MutableStateFlow("ALL")
-    val selectedFilter: StateFlow<String> = _selectedFilter.asStateFlow()
+    private val _selectedStatusFilter = MutableStateFlow("ALL")
+    val selectedStatusFilter: StateFlow<String> = _selectedStatusFilter.asStateFlow()
+
+    private val _selectedPaymentFilter = MutableStateFlow("ALL")
+    val selectedPaymentFilter: StateFlow<String> = _selectedPaymentFilter.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedBookingDetail = MutableStateFlow<BookingDto?>(null)
+    val selectedBookingDetail: StateFlow<BookingDto?> = _selectedBookingDetail.asStateFlow()
+
+    private var searchJob: Job? = null
 
     init {
-        loadBookings("ALL")
+        loadBookings()
     }
 
-    fun setFilter(filter: String) {
-        _selectedFilter.value = filter
-        loadBookings(filter)
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300) // Debounce search queries
+            loadBookings()
+        }
     }
 
-    fun loadBookings(filter: String = _selectedFilter.value) {
+    fun setStatusFilter(status: String) {
+        _selectedStatusFilter.value = status
+        loadBookings()
+    }
+
+    fun setPaymentFilter(paymentStatus: String) {
+        _selectedPaymentFilter.value = paymentStatus
+        loadBookings()
+    }
+
+    fun selectBooking(booking: BookingDto?) {
+        _selectedBookingDetail.value = booking
+    }
+
+    fun loadBookings() {
         viewModelScope.launch {
             _bookingsState.value = UiState.Loading
-            val filterParam = if (filter == "ALL") null else filter
-            _bookingsState.value = repository.getAdminBookings(filterParam)
+            val statusParam = _selectedStatusFilter.value.takeIf { it != "ALL" }
+            val paymentParam = _selectedPaymentFilter.value.takeIf { it != "ALL" }
+            val searchParam = _searchQuery.value.trim().takeIf { it.isNotEmpty() }
+
+            val result = repository.getAdminBookings(
+                statusFilter = statusParam,
+                search = searchParam,
+                paymentStatus = paymentParam,
+            )
+            _bookingsState.value = result
         }
+    }
+
+    fun refresh() {
+        loadBookings()
     }
 }

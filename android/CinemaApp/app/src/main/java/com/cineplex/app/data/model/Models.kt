@@ -283,13 +283,25 @@ data class TicketVerificationDto(
     @SerialName("ticket_code") val ticketCode: String,
     @SerialName("booking_reference") val bookingReference: String,
     @SerialName("user_name") val userName: String,
+    @SerialName("customer_email") val customerEmail: String? = null,
+    @SerialName("customer_phone") val customerPhone: String? = null,
+    @SerialName("customer_id") val customerId: Int? = null,
     @SerialName("movie_title") val movieTitle: String,
+    @SerialName("movie_poster_url") val moviePosterUrl: String? = null,
+    val language: String? = null,
+    val format: String? = null,
     @SerialName("screen_name") val screenName: String,
+    @SerialName("show_date") val showDate: String? = null,
     @SerialName("show_time") val showTime: String,
-    val seats: List<String>,
+    @SerialName("show_end_time") val showEndTime: String? = null,
+    val seats: List<String> = emptyList(),
+    @SerialName("ticket_count") val ticketCount: Int = 0,
     @SerialName("booking_status") val bookingStatus: String,
     @SerialName("payment_status") val paymentStatus: String,
+    @SerialName("validity_status") val validityStatus: String = if (isValid) "VALID" else "INVALID",
     @SerialName("issued_at") val issuedAt: String,
+    @SerialName("is_used") val isUsed: Boolean = false,
+    @SerialName("used_at") val usedAt: String? = null,
 )
 
 @Serializable
@@ -301,6 +313,11 @@ data class PaymentDto(
     val status: String,
     @SerialName("transaction_id") val transactionId: String? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("paid_at") val paidAt: String? = null,
+    @SerialName("verified_at") val verifiedAt: String? = null,
+    @SerialName("verified_by_id") val verifiedById: Int? = null,
+    @SerialName("verified_by_name") val verifiedByName: String? = null,
+    val remarks: String? = null,
     @SerialName("document_id") val documentId: String? = null,
 ) {
     val canonicalId: String
@@ -314,6 +331,7 @@ data class TicketDto(
     @SerialName("qr_data") val qrData: String? = null,
     @SerialName("issued_at") val issuedAt: String,
     @SerialName("is_used") val isUsed: Boolean = false,
+    @SerialName("used_at") val usedAt: String? = null,
     @SerialName("document_id") val documentId: String? = null,
 ) {
     val canonicalId: String
@@ -356,6 +374,8 @@ data class BookingDto(
     @SerialName("snacks_amount") val snacksAmount: Double = 0.0,
     val payment: PaymentDto? = null,
     val ticket: TicketDto? = null,
+    val user: UserDto? = null,
+    @SerialName("cancelled_at") val cancelledAt: String? = null,
     @SerialName("document_id") val documentId: String? = null,
 ) {
     val canonicalId: String

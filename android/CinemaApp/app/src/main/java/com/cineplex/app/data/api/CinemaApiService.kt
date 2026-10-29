@@ -124,7 +124,14 @@ interface CinemaApiService {
     suspend fun deleteSnack(@Path("id") id: Int): Response<SnackDto>
 
     @GET("api/admin/bookings/")
-    suspend fun getAdminBookings(@Query("status_filter") statusFilter: String? = null): Response<List<BookingDto>>
+    suspend fun getAdminBookings(
+        @Query("status_filter") statusFilter: String? = null,
+        @Query("search") search: String? = null,
+        @Query("payment_status") paymentStatus: String? = null,
+        @Query("movie_id") movieId: Int? = null,
+        @Query("booking_date") bookingDate: String? = null,
+        @Query("show_date") showDate: String? = null,
+    ): Response<List<BookingDto>>
 
     @GET("api/admin/payments/")
     suspend fun getAdminPayments(): Response<List<BookingDto>>
@@ -137,6 +144,11 @@ interface CinemaApiService {
 
     @GET("api/admin/tickets/verify/{code}")
     suspend fun verifyTicket(
+        @Path("code") code: String
+    ): Response<TicketVerificationDto>
+
+    @POST("api/admin/tickets/check-in/{code}")
+    suspend fun checkInTicket(
         @Path("code") code: String
     ): Response<TicketVerificationDto>
 }
