@@ -1,10 +1,12 @@
 """
 CinemaApp FastAPI Application — Main entry point.
 """
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
+import logging
 from app.config.settings import get_settings
 from app.config.database import engine, SessionLocal
 from app.config.migrations import run_migrations
@@ -17,6 +19,9 @@ from app.routes import (
 from app.services.seeder import run_seeds
 
 settings = get_settings()
+logger = logging.getLogger("app")
+
+CURRENT_SCHEMA_VERSION = "4"
 
 
 def init_db():
@@ -28,17 +33,17 @@ def init_db():
     is_ready = False
     try:
         ver = db.query(SystemSetting.value).filter(SystemSetting.key == "schema_version").first()
-        is_ready = (ver is not None and ver[0] == "3")
+        is_ready = (ver is not None and ver[0] == CURRENT_SCHEMA_VERSION)
     except Exception:
         is_ready = False
     finally:
         db.close()
 
     if is_ready:
-        print("[APP] Database schema is up to date (v3). Fast startup path active.")
+        print(f"[APP] Database schema is up to date (v{CURRENT_SCHEMA_VERSION}). Fast startup path active.")
         return
 
-    print("[APP] Applying schema migrations and initial seeds...")
+    print(f"[APP] Applying schema migrations (target v{CURRENT_SCHEMA_VERSION}) and initial seeds...")
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     db = SessionLocal()
@@ -46,13 +51,13 @@ def init_db():
         run_seeds(db)
         ver_setting = db.query(SystemSetting).filter(SystemSetting.key == "schema_version").first()
         if not ver_setting:
-            db.add(SystemSetting(key="schema_version", value="3"))
+            db.add(SystemSetting(key="schema_version", value=CURRENT_SCHEMA_VERSION))
         else:
-            ver_setting.value = "3"
+            ver_setting.value = CURRENT_SCHEMA_VERSION
         db.commit()
     finally:
         db.close()
-    print("[APP] Database initialization completed.")
+    print(f"[APP] Database initialization completed (v{CURRENT_SCHEMA_VERSION}).")
 
 
 @asynccontextmanager
@@ -88,6 +93,21 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url.path}: {exc}",
+        exc_info=True,
+    )
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None),
+        )
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()},
+        )
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal server error occurred", "error_code": "INTERNAL_ERROR"},

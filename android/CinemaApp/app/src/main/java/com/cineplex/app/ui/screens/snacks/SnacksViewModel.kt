@@ -28,7 +28,7 @@ class SnacksViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    val bookingId: Int = checkNotNull(savedStateHandle["bookingId"]).toString().toInt()
+    val bookingId: Int = savedStateHandle.get<Any>("bookingId")?.toString()?.toIntOrNull() ?: 0
 
     private val _snacksState = MutableStateFlow<UiState<List<SnackDto>>>(UiState.Loading)
     val snacksState: StateFlow<UiState<List<SnackDto>>> = _snacksState.asStateFlow()

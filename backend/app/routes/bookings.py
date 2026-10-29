@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config.database import get_db
 from app.models.models import (
     Booking, BookingSeat, BookingSnack, Show, ShowSeat, Seat, User,
-    BookingStatus, ShowSeatStatus, PaymentStatus
+    BookingStatus, ShowSeatStatus, PaymentStatus, Payment
 )
 from app.schemas.schemas import (
     CreateBookingRequest, BookingResponse, BookingSeatResponse, BookingSnackResponse,
@@ -49,6 +49,7 @@ def release_expired_holds(db: Session, show_id: Optional[int] = None, timeout_mi
                 ShowSeat.status.in_([ShowSeatStatus.HELD, ShowSeatStatus.BOOKED]),
             ).update({ShowSeat.status: ShowSeatStatus.AVAILABLE}, synchronize_session=False)
         b.status = BookingStatus.CANCELLED
+        b.cancelled_at = datetime.utcnow()
 
     try:
         # Also release any orphan HELD seats that are not part of an active unexpired pending booking
@@ -236,6 +237,7 @@ def get_my_bookings(
     """
     List all bookings for the currently authenticated user.
     Optionally filter by booking status (e.g., PENDING, CONFIRMED, CANCELLED).
+    Validates filter values and returns 400 for invalid inputs.
     """
     from app.schemas.schemas import BookingSnackResponse, PaymentResponse, TicketResponse
     query = (
@@ -246,7 +248,7 @@ def get_my_bookings(
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
             joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
+            joinedload(Booking.payment).joinedload(Payment.verified_by),
             joinedload(Booking.ticket),
         )
         .filter(Booking.user_id == current_user.id)
@@ -255,14 +257,27 @@ def get_my_bookings(
     filter_val = status or status_filter
     if filter_val:
         val = filter_val.upper().strip()
-        if val in ["PENDING"]:
-            query = query.filter(Booking.status == BookingStatus.PENDING)
+        if val in ["ALL", "ALL BOOKINGS", "ALL_BOOKINGS", ""]:
+            pass  # return all bookings without filter
+        elif val == "PENDING":
+            query = query.outerjoin(Booking.payment).filter(
+                Booking.status == BookingStatus.PENDING,
+                (Payment.status == None) | (Payment.status != PaymentStatus.FAILED)
+            )
         elif val in ["CONFIRMED", "BOOKED", "PAID"]:
             query = query.filter(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]))
         elif val in ["CANCELLED", "FAILED", "REJECTED"]:
-            query = query.filter(Booking.status == BookingStatus.CANCELLED)
+            query = query.outerjoin(Booking.payment).filter(
+                (Booking.status == BookingStatus.CANCELLED) |
+                (Payment.status == PaymentStatus.FAILED)
+            )
+        elif val in BookingStatus.__members__:
+            query = query.filter(Booking.status == BookingStatus[val])
         else:
-            query = query.filter(Booking.status == val)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status filter '{filter_val}'. Allowed values are: ALL, PENDING, CONFIRMED, CANCELLED."
+            )
 
     bookings = query.order_by(Booking.created_at.desc()).all()
 
@@ -277,7 +292,7 @@ def get_my_bookings(
                 seat_number=bs.seat.seat_number if bs.seat else 0,
                 price=bs.price,
             )
-            for bs in b.booking_seats
+            for bs in (b.booking_seats or [])
         ]
         snacks_resp = [
             BookingSnackResponse(
@@ -288,10 +303,19 @@ def get_my_bookings(
                 unit_price=bsn.unit_price,
                 total_price=bsn.total_price,
             )
-            for bsn in b.booking_snacks
+            for bsn in (b.booking_snacks or [])
         ]
-        ticket_subtotal = sum(bs.price for bs in b.booking_seats)
-        snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
+        ticket_subtotal = sum(bs.price for bs in (b.booking_seats or []))
+        snacks_subtotal = sum(bsn.total_price for bsn in (b.booking_snacks or []))
+
+        payment_resp = None
+        if b.payment:
+            try:
+                payment_resp = PaymentResponse.model_validate(b.payment)
+                if b.payment.verified_by:
+                    payment_resp.verified_by_name = b.payment.verified_by.name
+            except Exception:
+                payment_resp = None
 
         result.append(
             BookingResponse(
@@ -311,7 +335,7 @@ def get_my_bookings(
                 snacks=snacks_resp,
                 ticket_amount=ticket_subtotal,
                 snacks_amount=snacks_subtotal,
-                payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
+                payment=payment_resp,
                 ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
             )
         )
@@ -320,12 +344,17 @@ def get_my_bookings(
 
 @router.get("/{booking_id}", response_model=BookingResponse)
 def get_booking(
-    booking_id: int,
+    booking_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get single booking details for the currently authenticated user."""
-    booking = (
+    """
+    Get single booking details.
+    Allows authenticated users to retrieve their own bookings, and admins to retrieve any booking.
+    Supports either integer booking ID or alphanumeric booking_reference.
+    """
+    clean_id = str(booking_id).strip()
+    query = (
         db.query(Booking)
         .options(
             joinedload(Booking.user),
@@ -333,12 +362,20 @@ def get_booking(
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
             joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
+            joinedload(Booking.payment).joinedload(Payment.verified_by),
             joinedload(Booking.ticket),
         )
-        .filter(Booking.id == booking_id, Booking.user_id == current_user.id)
-        .first()
     )
+    if clean_id.isdigit():
+        query = query.filter(Booking.id == int(clean_id))
+    else:
+        query = query.filter(Booking.booking_reference == clean_id)
+
+    from app.models.models import UserRole
+    if current_user.role != UserRole.ADMIN:
+        query = query.filter(Booking.user_id == current_user.id)
+
+    booking = query.first()
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -354,7 +391,7 @@ def get_booking(
             seat_number=bs.seat.seat_number if bs.seat else 0,
             price=bs.price,
         )
-        for bs in booking.booking_seats
+        for bs in (booking.booking_seats or [])
     ]
     snacks_resp = [
         BookingSnackResponse(
@@ -365,10 +402,19 @@ def get_booking(
             unit_price=bsn.unit_price,
             total_price=bsn.total_price,
         )
-        for bsn in booking.booking_snacks
+        for bsn in (booking.booking_snacks or [])
     ]
-    ticket_subtotal = sum(bs.price for bs in booking.booking_seats)
-    snacks_subtotal = sum(bsn.total_price for bsn in booking.booking_snacks)
+    ticket_subtotal = sum(bs.price for bs in (booking.booking_seats or []))
+    snacks_subtotal = sum(bsn.total_price for bsn in (booking.booking_snacks or []))
+
+    payment_resp = None
+    if booking.payment:
+        try:
+            payment_resp = PaymentResponse.model_validate(booking.payment)
+            if booking.payment.verified_by:
+                payment_resp.verified_by_name = booking.payment.verified_by.name
+        except Exception:
+            payment_resp = None
 
     return BookingResponse(
         id=booking.id,
@@ -387,28 +433,38 @@ def get_booking(
         snacks=snacks_resp,
         ticket_amount=ticket_subtotal,
         snacks_amount=snacks_subtotal,
-        payment=PaymentResponse.model_validate(booking.payment) if booking.payment else None,
+        payment=payment_resp,
         ticket=TicketResponse.model_validate(booking.ticket) if booking.ticket else None,
     )
 
 
 @router.post("/{booking_id}/cancel", response_model=dict)
 def cancel_booking(
-    booking_id: int,
+    booking_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Cancel a pending booking and release its held seats.
-    Only the owning user can cancel.
+    Only the owning user or an admin can cancel.
     Never cancels a booking with submitted or completed payment.
+    Supports either integer booking ID or alphanumeric booking_reference.
     """
-    booking = (
+    clean_id = str(booking_id).strip()
+    query = (
         db.query(Booking)
         .options(joinedload(Booking.booking_seats), joinedload(Booking.payment))
-        .filter(Booking.id == booking_id, Booking.user_id == current_user.id)
-        .first()
     )
+    if clean_id.isdigit():
+        query = query.filter(Booking.id == int(clean_id))
+    else:
+        query = query.filter(Booking.booking_reference == clean_id)
+
+    from app.models.models import UserRole
+    if current_user.role != UserRole.ADMIN:
+        query = query.filter(Booking.user_id == current_user.id)
+
+    booking = query.first()
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -426,7 +482,7 @@ def cancel_booking(
 
     # If already cancelled, ensure any held seats are released idempotently
     if booking.status == BookingStatus.CANCELLED:
-        seat_ids = [bs.seat_id for bs in booking.booking_seats]
+        seat_ids = [bs.seat_id for bs in (booking.booking_seats or [])]
         if seat_ids:
             try:
                 db.query(ShowSeat).filter(
@@ -440,7 +496,7 @@ def cancel_booking(
         return {"status": "ok", "message": "Booking is already cancelled and seats released"}
 
     # Release held / booked seats belonging to this unsubmitted pending booking
-    seat_ids = [bs.seat_id for bs in booking.booking_seats]
+    seat_ids = [bs.seat_id for bs in (booking.booking_seats or [])]
     try:
         if seat_ids:
             db.query(ShowSeat).filter(

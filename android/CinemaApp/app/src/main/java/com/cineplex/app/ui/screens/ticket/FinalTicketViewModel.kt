@@ -20,7 +20,7 @@ class FinalTicketViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    val bookingId: Int = checkNotNull(savedStateHandle["bookingId"]).toString().toInt()
+    val bookingId: Int = savedStateHandle.get<Any>("bookingId")?.toString()?.toIntOrNull() ?: 0
 
     private val _bookingState = MutableStateFlow<UiState<BookingDto>>(UiState.Loading)
     val bookingState: StateFlow<UiState<BookingDto>> = _bookingState.asStateFlow()

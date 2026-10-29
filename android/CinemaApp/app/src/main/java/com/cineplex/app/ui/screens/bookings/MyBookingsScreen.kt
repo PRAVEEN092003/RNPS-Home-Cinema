@@ -145,7 +145,7 @@ fun MyBookingsScreen(
                                 contentPadding = PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                items(filtered, key = { it.id }) { booking ->
+                                items(filtered, key = { it.canonicalId }) { booking ->
                                     BookingCard(
                                         booking = booking,
                                         onClick = { onSelectBooking(booking) }

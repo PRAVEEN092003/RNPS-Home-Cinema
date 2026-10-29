@@ -347,7 +347,7 @@ def list_all_bookings(
 
     # Booking status filter
     if status_filter and status_filter.upper() != "ALL":
-        s_upper = status_filter.upper()
+        s_upper = status_filter.upper().strip()
         if s_upper == "PENDING":
             query = query.join(Payment, Booking.id == Payment.booking_id).filter(
                 Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.SUBMITTED])
@@ -356,10 +356,17 @@ def list_all_bookings(
             query = query.filter(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]))
         elif s_upper in ["CANCELLED", "FAILED"]:
             query = query.filter(Booking.status == BookingStatus.CANCELLED)
+        elif s_upper in BookingStatus.__members__:
+            query = query.filter(Booking.status == BookingStatus[s_upper])
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status_filter '{status_filter}'. Allowed values are ALL, PENDING, CONFIRMED, CANCELLED.",
+            )
 
     # Payment status filter
     if payment_status and payment_status.upper() != "ALL":
-        p_upper = payment_status.upper()
+        p_upper = payment_status.upper().strip()
         query = query.join(Payment, Booking.id == Payment.booking_id)
         if p_upper == "PENDING":
             query = query.filter(Payment.status == PaymentStatus.PENDING)
@@ -371,6 +378,13 @@ def list_all_bookings(
             query = query.filter(Payment.status == PaymentStatus.FAILED)
         elif p_upper == "REFUNDED":
             query = query.filter(Payment.status == PaymentStatus.REFUNDED)
+        elif p_upper in PaymentStatus.__members__:
+            query = query.filter(Payment.status == PaymentStatus[p_upper])
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid payment_status '{payment_status}'. Allowed values are ALL, PENDING, SUBMITTED, PAID, FAILED, REFUNDED.",
+            )
 
     # Movie filter
     if movie_id:

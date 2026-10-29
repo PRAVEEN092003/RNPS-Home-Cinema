@@ -1164,3 +1164,97 @@ def test_admin_ticket_atomic_check_in_and_duplicate_prevention():
     assert status_res["is_used"] is True
 
 
+def test_get_my_bookings_invalid_status_filter_returns_400():
+    """Verify that an invalid status filter value returns 400 Bad Request, never HTTP 500."""
+    token = get_auth_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    res = client.get("/api/bookings/my?status=INVALID_STATUS_VALUE", headers=headers)
+    assert res.status_code == 400
+    assert "invalid status filter" in res.json()["detail"].lower()
+
+    res_alias = client.get("/api/bookings/my?status_filter=NON_EXISTENT", headers=headers)
+    assert res_alias.status_code == 400
+    assert "invalid status filter" in res_alias.json()["detail"].lower()
+
+
+def test_get_my_bookings_unauthorized_and_expired():
+    """Verify that unauthenticated or invalid token requests return 401/403."""
+    res_none = client.get("/api/bookings/my")
+    assert res_none.status_code in [401, 403]
+
+    res_bad = client.get("/api/bookings/my", headers={"Authorization": "Bearer invalid_token_123"})
+    assert res_bad.status_code in [401, 403]
+
+
+def test_get_booking_by_id_and_reference_and_user_isolation():
+    """
+    Test single booking retrieval:
+    1. By integer ID
+    2. By alphanumeric booking_reference (no 422 integer parsing error)
+    3. User isolation: Customer cannot access another customer's booking
+    4. Admin can access any customer's booking
+    """
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    # Register User A
+    res_a = client.post("/api/auth/register", json={
+        "name": "Customer User A",
+        "email": "cust_a_iso@example.com",
+        "password": "password123"
+    })
+    token_a = res_a.json()["access_token"]
+    h_a = {"Authorization": f"Bearer {token_a}"}
+
+    # Register User B
+    res_b = client.post("/api/auth/register", json={
+        "name": "Customer User B",
+        "email": "cust_b_iso@example.com",
+        "password": "password123"
+    })
+    token_b = res_b.json()["access_token"]
+    h_b = {"Authorization": f"Bearer {token_b}"}
+
+    # User A creates a booking
+    show_id = _create_test_show(h_admin, days_offset=5)
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=h_a).json()["seats"]
+    avail = [s for s in seats if s["status"] == "AVAILABLE"]
+    b_res = client.post("/api/bookings/", headers=h_a, json={
+        "show_id": show_id,
+        "seat_ids": [avail[0]["seat_id"]]
+    })
+    assert b_res.status_code == 201
+    booking_a = b_res.json()
+    b_id = booking_a["id"]
+    b_ref = booking_a["booking_reference"]
+
+    # 1. User A retrieves by integer ID
+    get_id_res = client.get(f"/api/bookings/{b_id}", headers=h_a)
+    assert get_id_res.status_code == 200
+    assert get_id_res.json()["id"] == b_id
+
+    # 2. User A retrieves by booking reference (ensuring no 422 unable to parse string as integer)
+    get_ref_res = client.get(f"/api/bookings/{b_ref}", headers=h_a)
+    assert get_ref_res.status_code == 200
+    assert get_ref_res.json()["booking_reference"] == b_ref
+
+    # 3. User B attempts to access User A's booking by ID -> 404 (user isolation)
+    iso_id_res = client.get(f"/api/bookings/{b_id}", headers=h_b)
+    assert iso_id_res.status_code == 404
+
+    # User B attempts to access User A's booking by ref -> 404
+    iso_ref_res = client.get(f"/api/bookings/{b_ref}", headers=h_b)
+    assert iso_ref_res.status_code == 404
+
+    # 4. Admin CAN access User A's booking by ID and reference
+    admin_get_id = client.get(f"/api/bookings/{b_id}", headers=h_admin)
+    assert admin_get_id.status_code == 200
+    assert admin_get_id.json()["id"] == b_id
+
+    admin_get_ref = client.get(f"/api/bookings/{b_ref}", headers=h_admin)
+    assert admin_get_ref.status_code == 200
+    assert admin_get_ref.json()["booking_reference"] == b_ref
+
+
+

@@ -6,6 +6,7 @@ import com.cineplex.app.data.model.BookingDto
 import com.cineplex.app.data.repository.MovieRepository
 import com.cineplex.app.util.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,8 @@ class MyBookingsViewModel @Inject constructor(
     private val _bookingsState = MutableStateFlow<UiState<List<BookingDto>>>(UiState.Loading)
     val bookingsState: StateFlow<UiState<List<BookingDto>>> = _bookingsState.asStateFlow()
 
+    private var fetchJob: Job? = null
+
     init {
         loadBookings()
     }
@@ -34,13 +37,14 @@ class MyBookingsViewModel @Inject constructor(
     }
 
     fun loadBookings() {
+        fetchJob?.cancel()
         val status = when (_selectedTab.value) {
             1 -> "PENDING"
             2 -> "CONFIRMED"
             3 -> "CANCELLED"
             else -> null
         }
-        viewModelScope.launch {
+        fetchJob = viewModelScope.launch {
             _bookingsState.value = UiState.Loading
             _bookingsState.value = movieRepository.getMyBookings(status)
         }
