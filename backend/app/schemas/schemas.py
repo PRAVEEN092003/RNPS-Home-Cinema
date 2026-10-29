@@ -242,6 +242,7 @@ class TicketResponse(BaseModel):
     qr_data: Optional[str] = None
     issued_at: datetime
     is_used: bool
+    used_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -256,6 +257,10 @@ class PaymentResponse(BaseModel):
     transaction_id: Optional[str] = None
     paid_at: Optional[datetime] = None
     created_at: datetime
+    verified_at: Optional[datetime] = None
+    verified_by_id: Optional[int] = None
+    verified_by_name: Optional[str] = None
+    remarks: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -303,6 +308,8 @@ class BookingResponse(BaseModel):
     convenience_fee: float
     total_seats: int
     created_at: datetime
+    cancelled_at: Optional[datetime] = None
+    user: Optional[UserResponse] = None
     show: Optional[ShowResponse] = None
     seats: List[BookingSeatResponse] = []
     snacks: List[BookingSnackResponse] = []

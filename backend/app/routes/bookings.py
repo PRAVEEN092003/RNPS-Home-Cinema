@@ -12,7 +12,7 @@ from app.models.models import (
 )
 from app.schemas.schemas import (
     CreateBookingRequest, BookingResponse, BookingSeatResponse, BookingSnackResponse,
-    ShowResponse, PaymentResponse, TicketResponse
+    ShowResponse, PaymentResponse, TicketResponse, UserResponse
 )
 from app.utils.auth import get_current_user
 from app.utils.helpers import generate_booking_reference
@@ -218,6 +218,7 @@ def create_booking(
         convenience_fee=booking.convenience_fee,
         total_seats=booking.total_seats,
         created_at=booking.created_at,
+        user=UserResponse.model_validate(current_user),
         show=ShowResponse.model_validate(show),
         seats=booking_seat_responses,
         ticket_amount=subtotal,
@@ -240,6 +241,7 @@ def get_my_bookings(
     query = (
         db.query(Booking)
         .options(
+            joinedload(Booking.user),
             joinedload(Booking.show).joinedload(Show.movie),
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
@@ -302,6 +304,8 @@ def get_my_bookings(
                 convenience_fee=b.convenience_fee,
                 total_seats=b.total_seats,
                 created_at=b.created_at,
+                cancelled_at=b.cancelled_at or (b.updated_at if b.status == BookingStatus.CANCELLED else None),
+                user=UserResponse.model_validate(b.user) if b.user else None,
                 show=ShowResponse.model_validate(b.show) if b.show else None,
                 seats=seats_resp,
                 snacks=snacks_resp,
@@ -324,6 +328,7 @@ def get_booking(
     booking = (
         db.query(Booking)
         .options(
+            joinedload(Booking.user),
             joinedload(Booking.show).joinedload(Show.movie),
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
@@ -375,6 +380,8 @@ def get_booking(
         convenience_fee=booking.convenience_fee,
         total_seats=booking.total_seats,
         created_at=booking.created_at,
+        cancelled_at=booking.cancelled_at or (booking.updated_at if booking.status == BookingStatus.CANCELLED else None),
+        user=UserResponse.model_validate(booking.user) if booking.user else None,
         show=ShowResponse.model_validate(booking.show) if booking.show else None,
         seats=seats_resp,
         snacks=snacks_resp,
@@ -443,6 +450,7 @@ def cancel_booking(
             ).update({ShowSeat.status: ShowSeatStatus.AVAILABLE}, synchronize_session=False)
 
         booking.status = BookingStatus.CANCELLED
+        booking.cancelled_at = datetime.utcnow()
         db.commit()
     except Exception:
         db.rollback()

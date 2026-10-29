@@ -217,4 +217,36 @@ def run_migrations(engine: Engine) -> None:
         except Exception as e:
             print(f"[MIGRATION] Warning: Enum migration check encountered: {e}")
 
+    # ============================================================
+    # 5. BOOKINGS, PAYMENTS & TICKETS NEW AUDIT COLUMNS
+    # ============================================================
+    if "bookings" in inspector.get_table_names():
+        existing_booking_cols = {col["name"] for col in inspector.get_columns("bookings")}
+        if "cancelled_at" not in existing_booking_cols:
+            print("[MIGRATION] Adding cancelled_at column to bookings...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bookings ADD COLUMN cancelled_at TIMESTAMP NULL"))
+
+    if "payments" in inspector.get_table_names():
+        existing_payment_cols = {col["name"] for col in inspector.get_columns("payments")}
+        if "verified_at" not in existing_payment_cols:
+            print("[MIGRATION] Adding verified_at column to payments...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payments ADD COLUMN verified_at TIMESTAMP NULL"))
+        if "verified_by_id" not in existing_payment_cols:
+            print("[MIGRATION] Adding verified_by_id column to payments...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payments ADD COLUMN verified_by_id INTEGER NULL"))
+        if "remarks" not in existing_payment_cols:
+            print("[MIGRATION] Adding remarks column to payments...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE payments ADD COLUMN remarks TEXT NULL"))
+
+    if "tickets" in inspector.get_table_names():
+        existing_ticket_cols = {col["name"] for col in inspector.get_columns("tickets")}
+        if "used_at" not in existing_ticket_cols:
+            print("[MIGRATION] Adding used_at column to tickets...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE tickets ADD COLUMN used_at TIMESTAMP NULL"))
+
     print("[MIGRATION] Database schema migration check complete.")

@@ -210,6 +210,7 @@ class Booking(Base):
     total_seats = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    cancelled_at = Column(DateTime, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="bookings")
@@ -250,9 +251,13 @@ class Payment(Base):
     transaction_id = Column(String(100), nullable=True)
     paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    verified_at = Column(DateTime, nullable=True)
+    verified_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    remarks = Column(Text, nullable=True)
 
     # Relationships
     booking = relationship("Booking", back_populates="payment")
+    verified_by = relationship("User", foreign_keys=[verified_by_id])
 
     def __repr__(self):
         return f"<Payment id={self.id} booking={self.booking_id} status={self.status}>"
@@ -267,6 +272,7 @@ class Ticket(Base):
     qr_data = Column(Text, nullable=True)             # JSON or string for QR generation
     issued_at = Column(DateTime, default=datetime.utcnow)
     is_used = Column(Boolean, default=False)
+    used_at = Column(DateTime, nullable=True)
 
     # Relationships
     booking = relationship("Booking", back_populates="ticket")

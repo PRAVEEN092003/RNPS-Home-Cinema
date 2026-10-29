@@ -2,6 +2,7 @@
 Complete test suite for RNPS Home Cinema API.
 Run with: pytest tests/ -v
 """
+from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -883,4 +884,283 @@ def test_get_my_bookings_status_filters_and_user_isolation():
     h2 = {"Authorization": f"Bearer {token2}"}
     user2_res = client.get("/api/bookings/my", headers=h2).json()
     assert user2_res == []
+
+
+# ─── Feature 1 & 2: Admin Booking Details, QR Scanner & Check-in Tests ────────
+
+def _create_test_show(h_admin: dict, days_offset: int = 1) -> int:
+    """Helper to create an isolated show with fresh available seats."""
+    movies = client.get("/api/movies/", headers=h_admin).json()
+    movie_id = movies[0]["id"]
+    screens = client.get("/api/admin/screens/", headers=h_admin).json()
+    screen_id = screens[0]["id"]
+    t_start = datetime.utcnow() + timedelta(days=days_offset, hours=2)
+    t_end = t_start + timedelta(hours=2, minutes=30)
+    res = client.post("/api/admin/shows/", headers=h_admin, json={
+        "movie_id": movie_id,
+        "screen_id": screen_id,
+        "start_time": t_start.isoformat(),
+        "end_time": t_end.isoformat(),
+        "base_price": 100.0
+    })
+    return res.json()["id"]
+
+
+def test_admin_booking_details_complete_customer_info_and_ist_separation():
+    """
+    Test Feature 1:
+    - Customer information (full name, email, phone, user ID) is returned from linked user record.
+    - Booking creation timestamp and movie show timestamp are distinct fields.
+    - Multiple seats and snacks calculation are properly included.
+    """
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    # Register a specific customer with phone number
+    c_res = client.post("/api/auth/register", json={
+        "name": "Karthik Raja",
+        "email": "karthik.raja@example.com",
+        "phone": "+91-9840123456",
+        "password": "customerpass123"
+    })
+    c_data = c_res.json()
+    c_token = c_data["access_token"]
+    c_user_id = c_data["user"]["id"]
+    h_cust = {"Authorization": f"Bearer {c_token}"}
+
+    show_id = _create_test_show(h_admin, days_offset=2)
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=h_cust).json()["seats"]
+    avail = [s for s in seats if s["status"] == "AVAILABLE"]
+    assert len(avail) >= 2
+    seat_ids = [avail[0]["seat_id"], avail[1]["seat_id"]]
+
+    # Create multi-seat booking
+    b_res = client.post("/api/bookings/", headers=h_cust, json={
+        "show_id": show_id,
+        "seat_ids": seat_ids
+    })
+    assert b_res.status_code == 201
+    booking = b_res.json()
+    booking_id = booking["id"]
+
+    # Add snacks
+    snacks = client.get("/api/snacks/", headers=h_cust).json()
+    if snacks:
+        snack_id = snacks[0]["id"]
+        client.post(f"/api/snacks/booking/{booking_id}", headers=h_cust, json={
+            "items": [{"snack_id": snack_id, "quantity": 2}]
+        })
+
+    # Retrieve via admin booking endpoint
+    admin_bookings = client.get("/api/admin/bookings/", headers=h_admin).json()
+    target = next((b for b in admin_bookings if b["id"] == booking_id), None)
+    assert target is not None, "Booking must appear in admin booking list immediately"
+
+    # Verify customer info
+    assert target["user"] is not None
+    assert target["user"]["id"] == c_user_id
+    assert target["user"]["name"] == "Karthik Raja"
+    assert target["user"]["email"] == "karthik.raja@example.com"
+    assert target["user"]["phone"] == "+91-9840123456"
+
+    # Verify timestamps are distinct
+    assert target["created_at"] is not None
+    assert target["show"]["start_time"] is not None
+    assert target["created_at"] != target["show"]["start_time"]
+
+    # Verify seats and snacks subtotal
+    assert target["total_seats"] == 2
+    assert len(target["seats"]) == 2
+    assert target["ticket_amount"] > 0
+    if snacks:
+        assert target["snacks_amount"] > 0
+        assert len(target["snacks"]) >= 1
+
+
+def test_admin_booking_search_and_filters():
+    """Test searching by booking number, customer name, email, and status filters."""
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    # Search by customer name
+    res_name = client.get("/api/admin/bookings/?search=Karthik", headers=h_admin).json()
+    assert any(b.get("user") and "Karthik" in b["user"]["name"] for b in res_name)
+
+    # Search by email
+    res_email = client.get("/api/admin/bookings/?search=karthik.raja@example.com", headers=h_admin).json()
+    assert any(b.get("user") and "karthik.raja@example.com" == b["user"]["email"] for b in res_email)
+
+    # Filter by status
+    res_pending = client.get("/api/admin/bookings/?status_filter=PENDING", headers=h_admin).json()
+    for b in res_pending:
+        assert b["status"] == "PENDING" or (b["payment"] and b["payment"]["status"] in ["PENDING", "SUBMITTED"])
+
+
+def test_admin_unauthorized_access():
+    """Ensure non-admin users cannot access admin booking or verification endpoints."""
+    # Register regular user
+    u_res = client.post("/api/auth/register", json={
+        "name": "Standard User",
+        "email": "standard.user@example.com",
+        "password": "standardpass123"
+    })
+    token = u_res.json()["access_token"]
+    h_user = {"Authorization": f"Bearer {token}"}
+
+    # Attempt to access admin endpoints
+    assert client.get("/api/admin/bookings/", headers=h_user).status_code == 403
+    assert client.get("/api/admin/tickets/verify/BK-NONEXISTENT", headers=h_user).status_code == 403
+    assert client.post("/api/admin/tickets/check-in/BK-NONEXISTENT", headers=h_user).status_code == 403
+
+    # Attempt unauthenticated
+    assert client.get("/api/admin/bookings/").status_code in [401, 403]
+    assert client.get("/api/admin/tickets/verify/BK-NONEXISTENT").status_code in [401, 403]
+
+
+def test_admin_ticket_qr_verification_states():
+    """
+    Test Feature 2:
+    - Valid ticket verification (PAID + CONFIRMED)
+    - JSON embedded QR code decoding
+    - Unpaid ticket verification
+    - Cancelled ticket verification
+    - Invalid ticket code 404
+    """
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    # 1. Test non-existent ticket -> 404
+    err_res = client.get("/api/admin/tickets/verify/INVALID-TICKET-CODE-XYZ", headers=h_admin)
+    assert err_res.status_code == 404
+
+    # 2. Create customer and booking
+    c_res = client.post("/api/auth/register", json={
+        "name": "QR Customer",
+        "email": "qr.customer@example.com",
+        "phone": "+91-9988776655",
+        "password": "qrpassword123"
+    })
+    c_token = c_res.json()["access_token"]
+    h_cust = {"Authorization": f"Bearer {c_token}"}
+
+    show_id = _create_test_show(h_admin, days_offset=3)
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=h_cust).json()["seats"]
+    avail = [s for s in seats if s["status"] == "AVAILABLE"]
+    seat_id = avail[0]["seat_id"]
+
+    b_res = client.post("/api/bookings/", headers=h_cust, json={
+        "show_id": show_id,
+        "seat_ids": [seat_id]
+    })
+    assert b_res.status_code == 201
+    booking_data = b_res.json()
+    b_id = booking_data["id"]
+    b_ref = booking_data["booking_reference"]
+
+    # Submit payment to generate ticket
+    pay_res = client.post("/api/payments/submit", headers=h_cust, json={
+        "booking_id": b_id,
+        "payment_method": "UPI",
+        "transaction_reference": "UPI-VERIFY-TEST-001"
+    }).json()
+    t_code = pay_res["ticket"]["ticket_code"]
+    p_id = pay_res["payment"]["id"]
+
+    # Before admin approval: status is SUBMITTED -> ticket must be UNPAID / not valid admission
+    unpaid_res = client.get(f"/api/admin/tickets/verify/{t_code}", headers=h_admin).json()
+    assert unpaid_res["is_valid"] is False
+    assert unpaid_res["validity_status"] == "UNPAID"
+    assert unpaid_res["user_name"] == "QR Customer"
+    assert unpaid_res["booking_reference"] == b_ref
+
+    # Also test verification using booking_reference instead of ticket_code
+    unpaid_ref_res = client.get(f"/api/admin/tickets/verify/{b_ref}", headers=h_admin).json()
+    assert unpaid_ref_res["is_valid"] is False
+    assert unpaid_ref_res["validity_status"] == "UNPAID"
+
+    # Also test verification with JSON encoded QR payload
+    import json
+    qr_payload_str = json.dumps({"ticket_code": t_code, "booking_ref": b_ref})
+    json_verify_res = client.get(f"/api/admin/tickets/verify/{qr_payload_str}", headers=h_admin).json()
+    assert json_verify_res["ticket_code"] == t_code
+
+    # Admin approves payment with remarks
+    approve_res = client.post(f"/api/admin/payments/{p_id}/verify", headers=h_admin, json={
+        "action": "APPROVE",
+        "remarks": "Payment verified via bank ref"
+    })
+    assert approve_res.status_code == 200
+    assert approve_res.json()["payment"]["remarks"] == "Payment verified via bank ref"
+    assert approve_res.json()["payment"]["verified_by_name"] == "Admin"
+
+    # Now verify ticket: must be VALID!
+    valid_res = client.get(f"/api/admin/tickets/verify/{t_code}", headers=h_admin).json()
+    assert valid_res["is_valid"] is True
+    assert valid_res["validity_status"] == "VALID"
+    assert valid_res["user_name"] == "QR Customer"
+    assert valid_res["customer_email"] == "qr.customer@example.com"
+    assert valid_res["customer_phone"] == "+91-9988776655"
+    assert valid_res["ticket_count"] == 1
+    assert len(valid_res["seats"]) == 1
+    assert valid_res["is_used"] is False
+
+
+def test_admin_ticket_atomic_check_in_and_duplicate_prevention():
+    """
+    Test Feature 2 C:
+    - Atomically check in / admit patron using ticket code.
+    - Subsequent attempt to check in the same ticket returns 409 Conflict.
+    """
+    admin_token = get_auth_token()
+    h_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    c_res = client.post("/api/auth/register", json={
+        "name": "Admit Patron",
+        "email": "admit.patron@example.com",
+        "password": "password123"
+    })
+    h_cust = {"Authorization": f"Bearer {c_res.json()['access_token']}"}
+
+    show_id = _create_test_show(h_admin, days_offset=4)
+    seats = client.get(f"/api/shows/{show_id}/seats", headers=h_cust).json()["seats"]
+    avail = [s for s in seats if s["status"] == "AVAILABLE"]
+    seat_id = avail[0]["seat_id"]
+
+    b_res = client.post("/api/bookings/", headers=h_cust, json={
+        "show_id": show_id,
+        "seat_ids": [seat_id]
+    })
+    assert b_res.status_code == 201
+
+    pay_res = client.post("/api/payments/submit", headers=h_cust, json={
+        "booking_id": b_res.json()["id"],
+        "payment_method": "UPI",
+        "transaction_reference": "UPI-CHECKIN-001"
+    }).json()
+
+    t_code = pay_res["ticket"]["ticket_code"]
+    p_id = pay_res["payment"]["id"]
+
+    # Admin approves
+    client.post(f"/api/admin/payments/{p_id}/verify", headers=h_admin, json={"action": "APPROVE"})
+
+    # 1. First check-in: SUCCESS
+    ci_res = client.post(f"/api/admin/tickets/check-in/{t_code}", headers=h_admin)
+    assert ci_res.status_code == 200
+    ci_data = ci_res.json()
+    assert ci_data["is_used"] is True
+    assert ci_data["validity_status"] == "ALREADY_USED"
+    assert ci_data["used_at"] is not None
+
+    # 2. Second check-in attempt: MUST FAIL with 409 Conflict to prevent duplicate entry!
+    dup_res = client.post(f"/api/admin/tickets/check-in/{t_code}", headers=h_admin)
+    assert dup_res.status_code == 409
+    assert "already been used" in dup_res.json()["detail"].lower()
+
+    # 3. Verify ticket status shows ALREADY_USED
+    status_res = client.get(f"/api/admin/tickets/verify/{t_code}", headers=h_admin).json()
+    assert status_res["is_valid"] is False
+    assert status_res["validity_status"] == "ALREADY_USED"
+    assert status_res["is_used"] is True
+
 

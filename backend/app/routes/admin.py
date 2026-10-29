@@ -12,7 +12,7 @@ from app.models.models import (
     PaymentStatus, BookingStatus, ShowSeatStatus
 )
 from app.schemas.schemas import (
-    BookingResponse, BookingSeatResponse, BookingSnackResponse, ShowResponse, PaymentResponse, TicketResponse,
+    BookingResponse, BookingSeatResponse, BookingSnackResponse, ShowResponse, PaymentResponse, TicketResponse, UserResponse,
     MovieCreateRequest, MovieUpdateRequest, MovieResponse,
     ShowCreateRequest, ShowUpdateRequest,
     SnackCreateRequest, SnackUpdateRequest, SnackResponse,
@@ -247,16 +247,80 @@ def delete_snack(
     return SnackResponse.model_validate(snack)
 
 
+# ─── Booking Management Helper ────────────────────────────────────────────────
+
+def _build_booking_response(b: Booking) -> BookingResponse:
+    """Builds a complete, consistent BookingResponse including customer identity, pricing, and audit fields."""
+    seats_resp = [
+        BookingSeatResponse(
+            id=bs.id,
+            seat_id=bs.seat_id,
+            seat_code=bs.seat.seat_code if bs.seat else "",
+            row_label=bs.seat.row_label if bs.seat else "",
+            seat_number=bs.seat.seat_number if bs.seat else 0,
+            price=bs.price,
+        )
+        for bs in b.booking_seats
+    ]
+    snacks_resp = [
+        BookingSnackResponse(
+            id=bsn.id,
+            snack_id=bsn.snack_id,
+            snack_name=bsn.snack.name if bsn.snack else "Snack",
+            quantity=bsn.quantity,
+            unit_price=bsn.unit_price,
+            total_price=bsn.total_price,
+        )
+        for bsn in b.booking_snacks
+    ]
+    ticket_subtotal = sum(bs.price for bs in b.booking_seats)
+    snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
+
+    payment_resp = None
+    if b.payment:
+        payment_resp = PaymentResponse.model_validate(b.payment)
+        if b.payment.verified_by:
+            payment_resp.verified_by_name = b.payment.verified_by.name
+
+    return BookingResponse(
+        id=b.id,
+        user_id=b.user_id,
+        show_id=b.show_id,
+        booking_reference=b.booking_reference,
+        status=b.status,
+        total_amount=b.total_amount,
+        convenience_fee=b.convenience_fee,
+        total_seats=b.total_seats,
+        created_at=b.created_at,
+        cancelled_at=b.cancelled_at or (b.updated_at if b.status == BookingStatus.CANCELLED else None),
+        user=UserResponse.model_validate(b.user) if b.user else None,
+        show=ShowResponse.model_validate(b.show) if b.show else None,
+        seats=seats_resp,
+        snacks=snacks_resp,
+        ticket_amount=ticket_subtotal,
+        snacks_amount=snacks_subtotal,
+        payment=payment_resp,
+        ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
+    )
+
+
 # ─── Booking Management ───────────────────────────────────────────────────────
 
 @router.get("/bookings/", response_model=List[BookingResponse])
 def list_all_bookings(
     status_filter: Optional[str] = None,
+    search: Optional[str] = None,
+    payment_status: Optional[str] = None,
+    movie_id: Optional[int] = None,
+    booking_date: Optional[str] = None,
+    show_date: Optional[str] = None,
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_admin),
 ):
     """
-    Admin endpoint: view all bookings (optionally filter by status: PENDING, PAID, CANCELLED).
+    Admin endpoint: view all bookings with full customer information.
+    Supports search (booking ref, customer name, email, phone) and filtering by status, payment status, movie, booking date, show date.
+    Sorted by newest booking creation first by default.
     """
     query = (
         db.query(Booking)
@@ -266,77 +330,81 @@ def list_all_bookings(
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
             joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
+            joinedload(Booking.payment).joinedload(Payment.verified_by),
             joinedload(Booking.ticket),
         )
-        .order_by(Booking.created_at.desc())
     )
 
-    if status_filter:
+    # Search filter
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.outerjoin(Booking.user).filter(
+            (Booking.booking_reference.ilike(term)) |
+            (User.name.ilike(term)) |
+            (User.email.ilike(term)) |
+            (User.phone.ilike(term))
+        )
+
+    # Booking status filter
+    if status_filter and status_filter.upper() != "ALL":
         s_upper = status_filter.upper()
         if s_upper == "PENDING":
-            query = query.join(Payment, Booking.id == Payment.booking_id).filter(Payment.status == PaymentStatus.PENDING)
+            query = query.join(Payment, Booking.id == Payment.booking_id).filter(
+                Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.SUBMITTED])
+            )
         elif s_upper in ["PAID", "CONFIRMED"]:
-            query = query.filter(Booking.status == BookingStatus.CONFIRMED)
+            query = query.filter(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.COMPLETED]))
         elif s_upper in ["CANCELLED", "FAILED"]:
             query = query.filter(Booking.status == BookingStatus.CANCELLED)
 
-    bookings = query.all()
+    # Payment status filter
+    if payment_status and payment_status.upper() != "ALL":
+        p_upper = payment_status.upper()
+        query = query.join(Payment, Booking.id == Payment.booking_id)
+        if p_upper == "PENDING":
+            query = query.filter(Payment.status == PaymentStatus.PENDING)
+        elif p_upper == "SUBMITTED":
+            query = query.filter(Payment.status == PaymentStatus.SUBMITTED)
+        elif p_upper in ["PAID", "COMPLETED"]:
+            query = query.filter(Payment.status.in_([PaymentStatus.PAID, PaymentStatus.COMPLETED]))
+        elif p_upper == "FAILED":
+            query = query.filter(Payment.status == PaymentStatus.FAILED)
+        elif p_upper == "REFUNDED":
+            query = query.filter(Payment.status == PaymentStatus.REFUNDED)
 
-    result = []
-    for b in bookings:
-        seats_resp = [
-            BookingSeatResponse(
-                id=bs.id,
-                seat_id=bs.seat_id,
-                seat_code=bs.seat.seat_code if bs.seat else "",
-                row_label=bs.seat.row_label if bs.seat else "",
-                seat_number=bs.seat.seat_number if bs.seat else 0,
-                price=bs.price,
-            )
-            for bs in b.booking_seats
-        ]
-        snacks_resp = [
-            BookingSnackResponse(
-                id=bsn.id,
-                snack_id=bsn.snack_id,
-                snack_name=bsn.snack.name if bsn.snack else "Snack",
-                quantity=bsn.quantity,
-                unit_price=bsn.unit_price,
-                total_price=bsn.total_price,
-            )
-            for bsn in b.booking_snacks
-        ]
-        ticket_subtotal = sum(bs.price for bs in b.booking_seats)
-        snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
+    # Movie filter
+    if movie_id:
+        query = query.join(Booking.show).filter(Show.movie_id == movie_id)
 
-        result.append(
-            BookingResponse(
-                id=b.id,
-                user_id=b.user_id,
-                show_id=b.show_id,
-                booking_reference=b.booking_reference,
-                status=b.status,
-                total_amount=b.total_amount,
-                convenience_fee=b.convenience_fee,
-                total_seats=b.total_seats,
-                created_at=b.created_at,
-                show=ShowResponse.model_validate(b.show) if b.show else None,
-                seats=seats_resp,
-                snacks=snacks_resp,
-                ticket_amount=ticket_subtotal,
-                snacks_amount=snacks_subtotal,
-                payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
-                ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
-            )
-        )
-    return result
+    # Booking date filter (YYYY-MM-DD)
+    if booking_date and booking_date.strip():
+        try:
+            b_date = datetime.strptime(booking_date.strip(), "%Y-%m-%d").date()
+            next_date = b_date + timedelta(days=1)
+            query = query.filter(Booking.created_at >= datetime.combine(b_date, datetime.min.time()))
+            query = query.filter(Booking.created_at < datetime.combine(next_date, datetime.min.time()))
+        except ValueError:
+            pass
+
+    # Show date filter (YYYY-MM-DD)
+    if show_date and show_date.strip():
+        try:
+            s_date = datetime.strptime(show_date.strip(), "%Y-%m-%d").date()
+            next_s_date = s_date + timedelta(days=1)
+            query = query.join(Booking.show).filter(Show.start_time >= datetime.combine(s_date, datetime.min.time()))
+            query = query.filter(Show.start_time < datetime.combine(next_s_date, datetime.min.time()))
+        except ValueError:
+            pass
+
+    bookings = query.order_by(Booking.created_at.desc()).all()
+    return [_build_booking_response(b) for b in bookings]
 
 
 # ─── Payment Verification & Ticket Scanner ─────────────────────────────────────
 
 class PaymentVerificationRequest(BaseModel):
     action: str  # "APPROVE" or "REJECT"
+    remarks: Optional[str] = None
 
 
 class TicketVerificationResponse(BaseModel):
@@ -344,12 +412,24 @@ class TicketVerificationResponse(BaseModel):
     ticket_code: str
     booking_reference: str
     user_name: str
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_id: Optional[int] = None
     movie_title: str
+    movie_poster_url: Optional[str] = None
+    language: Optional[str] = None
+    format: Optional[str] = None
     screen_name: str
+    show_date: Optional[str] = None
     show_time: str
+    show_end_time: Optional[str] = None
     seats: List[str]
+    ticket_count: int
     booking_status: str
     payment_status: str
+    validity_status: str  # "VALID", "UNPAID", "ALREADY_USED", "CANCELLED", "EXPIRED", "INVALID"
+    is_used: bool = False
+    used_at: Optional[datetime] = None
     issued_at: datetime
 
 
@@ -369,7 +449,7 @@ def list_pending_payments(
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
             joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
+            joinedload(Booking.payment).joinedload(Payment.verified_by),
             joinedload(Booking.ticket),
         )
         .join(Payment, Booking.id == Payment.booking_id)
@@ -377,54 +457,7 @@ def list_pending_payments(
         .all()
     )
 
-    result = []
-    for b in bookings:
-        seats_resp = [
-            BookingSeatResponse(
-                id=bs.id,
-                seat_id=bs.seat_id,
-                seat_code=bs.seat.seat_code if bs.seat else "",
-                row_label=bs.seat.row_label if bs.seat else "",
-                seat_number=bs.seat.seat_number if bs.seat else 0,
-                price=bs.price,
-            )
-            for bs in b.booking_seats
-        ]
-        snacks_resp = [
-            BookingSnackResponse(
-                id=bsn.id,
-                snack_id=bsn.snack_id,
-                snack_name=bsn.snack.name if bsn.snack else "Snack",
-                quantity=bsn.quantity,
-                unit_price=bsn.unit_price,
-                total_price=bsn.total_price,
-            )
-            for bsn in b.booking_snacks
-        ]
-        ticket_subtotal = sum(bs.price for bs in b.booking_seats)
-        snacks_subtotal = sum(bsn.total_price for bsn in b.booking_snacks)
-
-        result.append(
-            BookingResponse(
-                id=b.id,
-                user_id=b.user_id,
-                show_id=b.show_id,
-                booking_reference=b.booking_reference,
-                status=b.status,
-                total_amount=b.total_amount,
-                convenience_fee=b.convenience_fee,
-                total_seats=b.total_seats,
-                created_at=b.created_at,
-                show=ShowResponse.model_validate(b.show) if b.show else None,
-                seats=seats_resp,
-                snacks=snacks_resp,
-                ticket_amount=ticket_subtotal,
-                snacks_amount=snacks_subtotal,
-                payment=PaymentResponse.model_validate(b.payment) if b.payment else None,
-                ticket=TicketResponse.model_validate(b.ticket) if b.ticket else None,
-            )
-        )
-    return result
+    return [_build_booking_response(b) for b in bookings]
 
 
 @router.post("/payments/{payment_id}/verify", response_model=BookingResponse)
@@ -443,6 +476,11 @@ def verify_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking record not found")
 
     action_upper = request.action.upper()
+    payment.verified_by_id = admin_user.id
+    payment.verified_at = datetime.utcnow()
+    if request.remarks:
+        payment.remarks = request.remarks
+
     if action_upper == "APPROVE":
         payment.status = PaymentStatus.PAID
         payment.paid_at = datetime.utcnow()
@@ -450,13 +488,15 @@ def verify_payment(
     elif action_upper == "REJECT":
         payment.status = PaymentStatus.FAILED
         booking.status = BookingStatus.CANCELLED
+        booking.cancelled_at = datetime.utcnow()
 
         # Release booked seats back to AVAILABLE
         seat_ids = [bs.seat_id for bs in booking.booking_seats]
-        db.query(ShowSeat).filter(
-            ShowSeat.show_id == booking.show_id,
-            ShowSeat.seat_id.in_(seat_ids)
-        ).update({ShowSeat.status: ShowSeatStatus.AVAILABLE}, synchronize_session=False)
+        if seat_ids:
+            db.query(ShowSeat).filter(
+                ShowSeat.show_id == booking.show_id,
+                ShowSeat.seat_id.in_(seat_ids)
+            ).update({ShowSeat.status: ShowSeatStatus.AVAILABLE}, synchronize_session=False)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Action must be APPROVE or REJECT")
 
@@ -467,62 +507,19 @@ def verify_payment(
     booking = (
         db.query(Booking)
         .options(
+            joinedload(Booking.user),
             joinedload(Booking.show).joinedload(Show.movie),
             joinedload(Booking.show).joinedload(Show.screen),
             joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
             joinedload(Booking.booking_snacks).joinedload(BookingSnack.snack),
-            joinedload(Booking.payment),
+            joinedload(Booking.payment).joinedload(Payment.verified_by),
             joinedload(Booking.ticket),
         )
         .filter(Booking.id == booking.id)
         .first()
     )
 
-    ticket_subtotal = sum(bs.price for bs in booking.booking_seats)
-    snacks_subtotal = sum(bsn.total_price for bsn in booking.booking_snacks)
-
-    seats_resp = [
-        BookingSeatResponse(
-            id=bs.id,
-            seat_id=bs.seat_id,
-            seat_code=bs.seat.seat_code if bs.seat else "",
-            row_label=bs.seat.row_label if bs.seat else "",
-            seat_number=bs.seat.seat_number if bs.seat else 0,
-            price=bs.price,
-        )
-        for bs in booking.booking_seats
-    ]
-
-    snacks_resp = [
-        BookingSnackResponse(
-            id=bsn.id,
-            snack_id=bsn.snack_id,
-            snack_name=bsn.snack.name if bsn.snack else "Snack",
-            quantity=bsn.quantity,
-            unit_price=bsn.unit_price,
-            total_price=bsn.total_price,
-        )
-        for bsn in booking.booking_snacks
-    ]
-
-    return BookingResponse(
-        id=booking.id,
-        user_id=booking.user_id,
-        show_id=booking.show_id,
-        booking_reference=booking.booking_reference,
-        status=booking.status,
-        total_amount=booking.total_amount,
-        convenience_fee=booking.convenience_fee,
-        total_seats=booking.total_seats,
-        created_at=booking.created_at,
-        show=ShowResponse.model_validate(booking.show) if booking.show else None,
-        seats=seats_resp,
-        snacks=snacks_resp,
-        ticket_amount=ticket_subtotal,
-        snacks_amount=snacks_subtotal,
-        payment=PaymentResponse.model_validate(booking.payment) if booking.payment else None,
-        ticket=TicketResponse.model_validate(booking.ticket) if booking.ticket else None,
-    )
+    return _build_booking_response(booking)
 
 
 @router.get("/tickets/verify/{code}", response_model=TicketVerificationResponse)
@@ -531,14 +528,52 @@ def verify_ticket(
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_admin),
 ):
-    ticket = db.query(Ticket).filter(Ticket.ticket_code == code.strip()).first()
+    """
+    Verify ticket code or booking reference.
+    Supports scanned raw strings and embedded QR JSON payloads.
+    Distinguishes VALID, UNPAID, ALREADY_USED, CANCELLED, and EXPIRED tickets.
+    """
+    clean_code = code.strip()
+    if clean_code.startswith("{") and clean_code.endswith("}"):
+        try:
+            import json
+            payload = json.loads(clean_code)
+            clean_code = payload.get("ticket_code") or payload.get("booking_ref") or clean_code
+        except Exception:
+            pass
+
+    ticket = db.query(Ticket).filter(Ticket.ticket_code == clean_code).first()
     booking = None
     if ticket:
-        booking = db.query(Booking).filter(Booking.id == ticket.booking_id).first()
+        booking = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.user),
+                joinedload(Booking.show).joinedload(Show.movie),
+                joinedload(Booking.show).joinedload(Show.screen),
+                joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
+                joinedload(Booking.payment),
+                joinedload(Booking.ticket),
+            )
+            .filter(Booking.id == ticket.booking_id)
+            .first()
+        )
     else:
-        booking = db.query(Booking).filter(Booking.booking_reference == code.strip()).first()
+        booking = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.user),
+                joinedload(Booking.show).joinedload(Show.movie),
+                joinedload(Booking.show).joinedload(Show.screen),
+                joinedload(Booking.booking_seats).joinedload(BookingSeat.seat),
+                joinedload(Booking.payment),
+                joinedload(Booking.ticket),
+            )
+            .filter(Booking.booking_reference == clean_code)
+            .first()
+        )
         if booking:
-            ticket = db.query(Ticket).filter(Ticket.booking_id == booking.id).first()
+            ticket = booking.ticket
 
     if not booking or not ticket:
         raise HTTPException(
@@ -546,28 +581,146 @@ def verify_ticket(
             detail="Ticket or Booking reference code not found"
         )
 
-    payment = db.query(Payment).filter(Payment.booking_id == booking.id).first()
+    payment = booking.payment
     is_paid = payment is not None and (payment.status in [PaymentStatus.PAID, PaymentStatus.COMPLETED])
-    is_booking_active = booking.status != BookingStatus.CANCELLED
+    is_cancelled = booking.status == BookingStatus.CANCELLED
+    is_used = bool(ticket.is_used)
 
-    is_valid = is_paid and is_booking_active
+    # Expiry check: if show end_time has passed by more than 1 hour
+    now_utc = datetime.utcnow()
+    is_expired = False
+    if booking.show and booking.show.end_time:
+        if booking.show.end_time < now_utc - timedelta(hours=1):
+            is_expired = True
 
-    user = db.query(User).filter(User.id == booking.user_id).first()
+    if is_cancelled:
+        validity_status = "CANCELLED"
+        is_valid = False
+    elif not is_paid:
+        validity_status = "UNPAID"
+        is_valid = False
+    elif is_used:
+        validity_status = "ALREADY_USED"
+        is_valid = False
+    elif is_expired:
+        validity_status = "EXPIRED"
+        is_valid = False
+    else:
+        validity_status = "VALID"
+        is_valid = True
+
+    # Format show schedule in IST (UTC + 5:30)
+    show_date_str = None
+    show_time_str = ""
+    show_end_time_str = None
+    if booking.show and booking.show.start_time:
+        ist_start = booking.show.start_time + timedelta(hours=5, minutes=30)
+        show_date_str = ist_start.strftime("%d %b %Y")
+        show_time_str = ist_start.strftime("%I:%M %p")
+        if booking.show.end_time:
+            ist_end = booking.show.end_time + timedelta(hours=5, minutes=30)
+            show_end_time_str = ist_end.strftime("%I:%M %p")
+
+    user = booking.user
     seats_list = [bs.seat.seat_code for bs in booking.booking_seats if bs.seat]
+
+    movie = booking.show.movie if booking.show else None
+    screen = booking.show.screen if booking.show else None
+    format_spec = None
+    if movie:
+        format_spec = f"{movie.display_technology} • {movie.audio_technology}"
 
     return TicketVerificationResponse(
         is_valid=is_valid,
         ticket_code=ticket.ticket_code,
         booking_reference=booking.booking_reference,
         user_name=user.name if user else "Customer",
-        movie_title=booking.show.movie.title if booking.show and booking.show.movie else "Movie",
-        screen_name=booking.show.screen.name if booking.show and booking.show.screen else "Screen",
-        show_time=str(booking.show.start_time) if booking.show else "",
+        customer_email=user.email if user else None,
+        customer_phone=user.phone if user else None,
+        customer_id=user.id if user else None,
+        movie_title=movie.title if movie else "Movie",
+        movie_poster_url=movie.poster_url if movie else None,
+        language=movie.language if movie else None,
+        format=format_spec,
+        screen_name=screen.name if screen else "Screen",
+        show_date=show_date_str,
+        show_time=show_time_str or (str(booking.show.start_time) if booking.show else ""),
+        show_end_time=show_end_time_str,
         seats=seats_list,
+        ticket_count=len(seats_list) or booking.total_seats,
         booking_status=booking.status.value,
         payment_status=payment.status.value if payment else "UNPAID",
+        validity_status=validity_status,
+        is_used=is_used,
+        used_at=ticket.used_at,
         issued_at=ticket.issued_at,
     )
+
+
+@router.post("/tickets/check-in/{code}", response_model=TicketVerificationResponse)
+def check_in_ticket(
+    code: str,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    """
+    Atomically marks a valid ticket as checked in / used at cinema entrance.
+    Prevents duplicate or concurrent admissions on the same ticket code.
+    """
+    clean_code = code.strip()
+    if clean_code.startswith("{") and clean_code.endswith("}"):
+        try:
+            import json
+            payload = json.loads(clean_code)
+            clean_code = payload.get("ticket_code") or payload.get("booking_ref") or clean_code
+        except Exception:
+            pass
+
+    ticket = db.query(Ticket).filter(Ticket.ticket_code == clean_code).first()
+    if not ticket:
+        booking = db.query(Booking).filter(Booking.booking_reference == clean_code).first()
+        if booking:
+            ticket = booking.ticket
+
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+
+    booking = (
+        db.query(Booking)
+        .options(
+            joinedload(Booking.user),
+            joinedload(Booking.payment),
+        )
+        .filter(Booking.id == ticket.booking_id)
+        .first()
+    )
+
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    is_paid = booking.payment is not None and (booking.payment.status in [PaymentStatus.PAID, PaymentStatus.COMPLETED])
+    if booking.status == BookingStatus.CANCELLED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot check in a cancelled booking")
+    if not is_paid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot check in an unpaid ticket. Payment must be verified first.")
+
+    # Atomic update on ticket.is_used to prevent simultaneous scans from admitting twice
+    updated_rows = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket.id, Ticket.is_used == False)
+        .update({Ticket.is_used: True, Ticket.used_at: datetime.utcnow()}, synchronize_session=False)
+    )
+    if updated_rows == 0:
+        db.refresh(ticket)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Ticket has already been used / checked in at {ticket.used_at}"
+        )
+
+    db.commit()
+    db.refresh(ticket)
+
+    return verify_ticket(code=ticket.ticket_code, db=db, admin_user=admin_user)
 
 
 # ─── Screen Management ────────────────────────────────────────────────────────
